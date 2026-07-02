@@ -1,0 +1,9 @@
+{
+  "network": "hederaTestnet",
+  "chainId": 296,
+  "TokenCreator": "0x17ac1C0fc9A33c43550A79ED1631c17e134212E3",
+  "TradeEasyFactory": "0x0212ECcf0022025E7ea1556c2F6E5fC537ACc14e",
+  "TradeEasyRouter": "0xBc79Cbd35142Bef5c9D2919E3eA1484651A2D3a0",
+  "deployer": "0x7cBfF11440099DB224d2B54d12e1116eB565C8FE",
+  "timestamp": "2026-07-02T18:13:57.691Z"
+}
