@@ -82,7 +82,7 @@ contract TokenCreator {
         // Set up the expiry parameters
         IHederaTokenService.Expiry memory expiry = IHederaTokenService.Expiry({
             second: 0,
-            autoRenewAccount: msg.sender,
+            autoRenewAccount: address(this),
             autoRenewPeriod: 7890000 // ~3 months in seconds
         });
 

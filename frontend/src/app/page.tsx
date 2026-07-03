@@ -28,6 +28,66 @@ import TokenCreatorAbi from "@/contracts/TokenCreator.json";
 import TradeEasyRouterAbi from "@/contracts/TradeEasyRouter.json";
 import TradeEasyFactoryAbi from "@/contracts/TradeEasyFactory.json";
 
+const TokenSelector = ({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [customToken, setCustomToken] = useState("");
+  const teraAddress = (addresses as any).TERA;
+  const isHbar = value === "HBAR";
+  const isTera = teraAddress && value === teraAddress;
+  const isCustom = value !== "" && !isHbar && !isTera;
+
+  return (
+    <div className="flex flex-col gap-1.5 relative">
+      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</label>
+      <div 
+        className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus-within:border-neon-teal/50 transition-all cursor-pointer flex justify-between items-center group hover:shadow-[0_0_15px_rgba(45,212,191,0.2)] hover:border-neon-teal/40"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="text-white text-sm truncate pr-2">
+          {isHbar ? "HBAR" : isTera ? "TERA" : isCustom ? value : placeholder}
+        </span>
+        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-300 flex-shrink-0 ${isOpen ? "rotate-90" : ""}`} />
+      </div>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-[#0B0C10] border border-white/10 rounded-xl overflow-hidden z-50 animate-fadeIn shadow-2xl">
+          <div 
+            className="px-4 py-3 hover:bg-neon-teal/10 hover:text-neon-teal cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group"
+            onClick={() => { onChange("HBAR"); setIsOpen(false); }}
+          >
+            HBAR
+          </div>
+          {teraAddress && (
+            <div 
+              className="px-4 py-3 hover:bg-neon-purple/10 hover:text-neon-purple cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group border-t border-white/5"
+              onClick={() => { onChange(teraAddress); setIsOpen(false); }}
+            >
+              TERA 
+              <span className="text-[10px] uppercase tracking-wider bg-neon-purple/20 text-neon-purple px-2 py-0.5 rounded-full border border-neon-purple/30 text-glow-purple shadow-[0_0_10px_rgba(168,85,247,0.5)]">Native Token</span>
+            </div>
+          )}
+          <div 
+            className="px-4 py-3 hover:bg-white/5 cursor-pointer transition-colors text-sm text-gray-300 flex flex-col gap-2 border-t border-white/5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-gray-400">Custom Token</span>
+            <input 
+              type="text" 
+              placeholder="Paste Address 0x..." 
+              className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-neon-teal/50"
+              value={isCustom ? value : customToken}
+              onChange={(e) => {
+                setCustomToken(e.target.value);
+                onChange(e.target.value);
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"mint" | "swap" | "agent">("mint");
   const { address: userAddress, isConnected } = useAccount();
@@ -55,6 +115,7 @@ export default function Home() {
 
   // --- AI AGENT STATE ---
   const [agentInput, setAgentInput] = useState("");
+  const [agentSelectedToken, setAgentSelectedToken] = useState("");
   const [agentStatus, setAgentStatus] = useState<"idle" | "thinking" | "done" | "rejected">("idle");
   const [agentLogs, setAgentLogs] = useState<Array<{ type: "user" | "agent" | "system" | "error"; text: string; hash?: string }>>([
     { type: "agent", text: "System Online. Secure policy enforcement active: Max limit 100 HBAR / 1000 tokens. Deployed address allow-list active. How can I assist you on Hedera TestNet today?" }
@@ -274,10 +335,14 @@ export default function Home() {
     setAgentStatus("thinking");
 
     try {
+      const payload: any = { prompt: userMsg };
+      if (userAddress) payload.userAddress = userAddress;
+      if (agentSelectedToken) payload.contextToken = agentSelectedToken;
+
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: userMsg })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
 
@@ -508,25 +573,21 @@ export default function Home() {
               </div>
 
               <form onSubmit={handleSwap} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Token In (Address)</label>
-                  <input
-                    type="text"
-                    value={tokenA}
-                    onChange={(e) => setTokenA(e.target.value)}
-                    placeholder="0x..."
-                    className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-teal/50 focus:outline-none text-white text-sm"
+                <div className="flex flex-col gap-4 z-40 relative">
+                  <TokenSelector 
+                    label="Token In" 
+                    value={tokenA} 
+                    onChange={setTokenA} 
+                    placeholder="Select Token" 
                   />
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Token Out (Address)</label>
-                  <input
-                    type="text"
-                    value={tokenB}
-                    onChange={(e) => setTokenB(e.target.value)}
-                    placeholder="0x..."
-                    className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-teal/50 focus:outline-none text-white text-sm"
+                <div className="flex flex-col gap-4 z-30 relative">
+                  <TokenSelector 
+                    label="Token Out" 
+                    value={tokenB} 
+                    onChange={setTokenB} 
+                    placeholder="Select Token" 
                   />
                 </div>
 
@@ -680,22 +741,32 @@ export default function Home() {
               </div>
 
               {/* Input Form */}
-              <form onSubmit={handleAgentCommand} className="flex gap-2">
-                <input
-                  type="text"
-                  value={agentInput}
-                  onChange={(e) => setAgentInput(e.target.value)}
-                  placeholder="e.g. Swap 10 HBAR for token 0x17ac1C0fc9A33..."
-                  className="flex-1 px-4 py-3.5 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
-                />
-                <button
-                  type="submit"
-                  className="px-6 bg-neon-purple hover:bg-purple-600 text-white rounded-xl font-bold flex items-center gap-1.5 transition-all"
-                >
-                  Send
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </form>
+              <div className="flex flex-col gap-3">
+                <div className="w-full z-40 relative">
+                  <TokenSelector 
+                    label="Target Token (Context)" 
+                    value={agentSelectedToken} 
+                    onChange={setAgentSelectedToken} 
+                    placeholder="Select a token..." 
+                  />
+                </div>
+                <form onSubmit={handleAgentCommand} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={agentInput}
+                    onChange={(e) => setAgentInput(e.target.value)}
+                    placeholder="e.g. Swap 10 HBAR for token..."
+                    className="flex-1 px-4 py-3.5 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 bg-neon-purple hover:bg-purple-600 text-white rounded-xl font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    Send
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </form>
+              </div>
             </div>
 
             {/* Right Column: Central Command Sphere */}

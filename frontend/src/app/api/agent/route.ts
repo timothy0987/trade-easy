@@ -29,7 +29,7 @@ const PROVIDER_URL = "https://testnet.hashio.io/api";
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt } = await req.json();
+    const { prompt, userAddress, contextToken } = await req.json();
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
@@ -128,13 +128,36 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
       }
     }
 
+    // --- CHECK TERA BALANCE FOR FEE DISCOUNT ---
+    let hasTera = false;
+    let actualFee = 2; // Default 2 HBAR
+    if (userAddress && (addresses as any).TERA) {
+      try {
+        const checkProvider = new ethers.JsonRpcProvider(PROVIDER_URL);
+        const teraContract = new ethers.Contract((addresses as any).TERA, [
+          "function balanceOf(address owner) view returns (uint256)"
+        ], checkProvider);
+        const teraBalance = await teraContract.balanceOf(userAddress);
+        if (teraBalance > 0n) {
+          hasTera = true;
+          actualFee = 1; // 50% discount
+        }
+      } catch (err) {
+        console.error("Failed to check TERA balance:", err);
+      }
+    }
+
+    const discountMsg = hasTera 
+      ? `\n\n[TERA Holder Discount Applied: 50% off! Fee: ${actualFee} HBAR (Standard: 2 HBAR)]`
+      : `\n\n[Transaction Fee: 2 HBAR (Hold TERA for a 50% fee discount!)]`;
+
     // --- EXECUTE ON-CHAIN TRANSACTIONS ---
     const privateKey = process.env.PRIVATE_KEY;
     if (!privateKey) {
       return NextResponse.json({
         status: "SIMULATED",
         parsedAction,
-        message: "No private key configured on server. Guardrails passed. Transaction would execute successfully."
+        message: `No private key configured on server. Guardrails passed. Transaction would execute successfully.${discountMsg}`
       });
     }
 
@@ -173,7 +196,7 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
         status: "SUCCESS",
         action: "mint",
         txHash: receipt.hash,
-        message: `Successfully minted ${amount} tokens to HTS Token ${tokenAddress}. Tx Hash: ${receipt.hash}`
+        message: `Successfully minted ${amount} tokens to HTS Token ${tokenAddress}. Tx Hash: ${receipt.hash}${discountMsg}`
       });
     }
 
@@ -222,7 +245,7 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
         status: "SUCCESS",
         action: "swap",
         txHash: receipt.hash,
-        message: `Successfully swapped ${amount} of ${tokenIn} for ${tokenOut}. Tx Hash: ${receipt.hash}`
+        message: `Successfully swapped ${amount} of ${tokenIn} for ${tokenOut}. Tx Hash: ${receipt.hash}${discountMsg}`
       });
     }
 
