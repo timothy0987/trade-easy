@@ -124,32 +124,47 @@ export default function Home() {
 
   // --- FAUCET STATE ---
   const [faucetClaimTx, setFaucetClaimTx] = useState(false);
-  const [nextClaimTime, setNextClaimTime] = useState<number>(0);
+  const [nextClaimTime, setNextClaimTime] = useState<number | null>(null);
   const [countdownStr, setCountdownStr] = useState<string>("");
 
   // Read next claim time
-  const { data: claimTimeData, refetch: refetchClaimTime } = useReadContract({
+  const { data: claimTimeData, refetch: refetchClaimTime, isError, error } = useReadContract({
     address: addresses.TeraFaucet as `0x${string}`,
     abi: TeraFaucetAbi,
     functionName: "nextClaimTime",
     args: userAddress ? [userAddress] : undefined,
     query: {
-      enabled: !!userAddress
+      enabled: !!userAddress,
+      retry: false
     }
   });
 
   useEffect(() => {
-    if (claimTimeData !== undefined) {
-      setNextClaimTime(Number(claimTimeData));
+    try {
+      if (isError) {
+        console.error("Error reading Faucet contract:", error);
+        setNextClaimTime(0);
+        return;
+      }
+      if (claimTimeData !== undefined) {
+        setNextClaimTime(Number(claimTimeData));
+      }
+    } catch (e) {
+      console.error("Try/Catch Faucet error:", e);
+      setNextClaimTime(0);
     }
-  }, [claimTimeData]);
+  }, [claimTimeData, isError, error]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (nextClaimTime === 0) return;
+      if (nextClaimTime === null) return;
+      if (nextClaimTime === 0) {
+        setCountdownStr("Ready to Claim");
+        return;
+      }
       const now = Math.floor(Date.now() / 1000);
       if (now >= nextClaimTime) {
-        setCountdownStr("Available Now");
+        setCountdownStr("Ready to Claim");
       } else {
         const diff = nextClaimTime - now;
         const h = Math.floor(diff / 3600);
@@ -900,16 +915,16 @@ export default function Home() {
               <div className="bg-void/50 border border-white/10 rounded-2xl p-6 w-full flex flex-col gap-2 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-neon-teal/5 group-hover:bg-neon-teal/10 transition-colors"></div>
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider relative z-10">Next Claim Available</span>
-                <span className={`text-3xl font-mono font-bold relative z-10 ${countdownStr === "Available Now" ? "text-green-400" : "text-neon-teal text-glow-teal"}`}>
-                  {nextClaimTime === 0 ? "Loading..." : countdownStr}
+                <span className={`text-3xl font-mono font-bold relative z-10 ${countdownStr === "Ready to Claim" ? "text-green-400" : "text-neon-teal text-glow-teal"}`}>
+                  {nextClaimTime === null ? "Loading..." : countdownStr}
                 </span>
               </div>
 
               <button
                 onClick={handleClaimFaucet}
-                disabled={faucetClaimTx || (countdownStr !== "Available Now" && nextClaimTime !== 0)}
+                disabled={faucetClaimTx || (nextClaimTime !== null && countdownStr !== "Ready to Claim")}
                 className={`w-full py-4 font-bold rounded-xl transition-all duration-300 mt-2 flex items-center justify-center gap-2 border shadow-[0_0_20px_rgba(45,212,191,0.3)] ${
-                  faucetClaimTx || (countdownStr !== "Available Now" && nextClaimTime !== 0)
+                  faucetClaimTx || (nextClaimTime !== null && countdownStr !== "Ready to Claim")
                     ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed shadow-none"
                     : "bg-gradient-to-r from-neon-teal to-teal-800 hover:from-teal-500 hover:to-neon-teal text-white border-teal-500/30"
                 }`}
