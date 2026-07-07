@@ -19,10 +19,10 @@ const POLICY_SPENDING_LIMITS = {
 };
 
 const ALLOWED_CONTRACTS = [
-  addresses.TokenCreator.toLowerCase(),
-  addresses.TradeEasyFactory.toLowerCase(),
-  addresses.TradeEasyRouter.toLowerCase()
-];
+  (addresses as any).TokenCreator?.toLowerCase() || "",
+  (addresses as any).TradeEasyFactory?.toLowerCase() || "",
+  (addresses as any).TradeEasyRouter?.toLowerCase() || ""
+].filter(Boolean);
 
 // RPC setup
 const PROVIDER_URL = "https://testnet.hashio.io/api";
