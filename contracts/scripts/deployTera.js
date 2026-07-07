@@ -33,12 +33,16 @@ async function main() {
     console.log("Faucet Treasury successfully funded!");
 
     // 4. Save Addresses for the Frontend
-    const addresses = {
-        TERA: teraAddress,
-        Faucet: faucetAddress
-    };
-
+    // We will preserve existing addresses so frontend components don't break
     const frontendPath = path.join(__dirname, "../../frontend/src/contracts/addresses.json");
+    let addresses = {};
+    if (fs.existsSync(frontendPath)) {
+        addresses = JSON.parse(fs.readFileSync(frontendPath, "utf8"));
+    }
+    
+    addresses.TERA = teraAddress;
+    addresses.TeraFaucet = faucetAddress;
+
     fs.writeFileSync(frontendPath, JSON.stringify(addresses, null, 2));
     console.log("Frontend addresses updated!");
 }
