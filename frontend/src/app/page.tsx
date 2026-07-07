@@ -27,6 +27,7 @@ import addresses from "@/contracts/addresses.json";
 import TokenCreatorAbi from "@/contracts/TokenCreator.json";
 import TradeEasyRouterAbi from "@/contracts/TradeEasyRouter.json";
 import TradeEasyFactoryAbi from "@/contracts/TradeEasyFactory.json";
+import TeraFaucetAbi from "@/contracts/TeraFaucet.json";
 
 const TokenSelector = ({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -89,7 +90,7 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
 };
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"mint" | "swap" | "agent">("mint");
+  const [activeTab, setActiveTab] = useState<"mint" | "swap" | "agent" | "faucet">("mint");
   const { address: userAddress, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
@@ -120,6 +121,65 @@ export default function Home() {
   const [agentLogs, setAgentLogs] = useState<Array<{ type: "user" | "agent" | "system" | "error"; text: string; hash?: string }>>([
     { type: "agent", text: "System Online. Secure policy enforcement active: Max limit 100 HBAR / 1000 tokens. Deployed address allow-list active. How can I assist you on Hedera TestNet today?" }
   ]);
+
+  // --- FAUCET STATE ---
+  const [faucetClaimTx, setFaucetClaimTx] = useState(false);
+  const [nextClaimTime, setNextClaimTime] = useState<number>(0);
+  const [countdownStr, setCountdownStr] = useState<string>("");
+
+  // Read next claim time
+  const { data: claimTimeData, refetch: refetchClaimTime } = useReadContract({
+    address: addresses.TeraFaucet as `0x${string}`,
+    abi: TeraFaucetAbi,
+    functionName: "nextClaimTime",
+    args: userAddress ? [userAddress] : undefined,
+    query: {
+      enabled: !!userAddress
+    }
+  });
+
+  useEffect(() => {
+    if (claimTimeData !== undefined) {
+      setNextClaimTime(Number(claimTimeData));
+    }
+  }, [claimTimeData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (nextClaimTime === 0) return;
+      const now = Math.floor(Date.now() / 1000);
+      if (now >= nextClaimTime) {
+        setCountdownStr("Available Now");
+      } else {
+        const diff = nextClaimTime - now;
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
+        setCountdownStr(`${h}h ${m}m ${s}s`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [nextClaimTime]);
+
+  const handleClaimFaucet = async () => {
+    if (!isConnected) return alert("Please connect your wallet");
+    setFaucetClaimTx(true);
+    try {
+      const tx = await writeContractAsync({
+        address: addresses.TeraFaucet as `0x${string}`,
+        abi: TeraFaucetAbi,
+        functionName: "claimTera",
+        args: []
+      });
+      alert(`Claimed 100 $TERA successfully! Hash: ${tx}`);
+      setTimeout(() => refetchClaimTime(), 5000);
+    } catch(err: any) {
+      console.error(err);
+      alert(`Claim failed: ${err.message || err}`);
+    } finally {
+      setFaucetClaimTx(false);
+    }
+  };
 
   // Read user created tokens
   const { data: createdTokens, refetch: refetchTokens } = useReadContract({
@@ -424,6 +484,17 @@ export default function Home() {
           >
             <Bot className="w-4 h-4" />
             AI Agent
+          </button>
+          <button
+            onClick={() => setActiveTab("faucet")}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+              activeTab === "faucet" 
+                ? "bg-neon-teal/20 text-neon-teal border border-neon-teal/30 text-glow-teal" 
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Coins className="w-4 h-4" />
+            Faucet
           </button>
         </div>
         <ConnectButton showBalance={false} chainStatus="none" accountStatus="avatar" />
@@ -808,6 +879,50 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* FAUCET TAB */}
+        {activeTab === "faucet" && (
+          <div className="flex justify-center animate-fadeIn">
+            <div className="glass-card-teal p-8 flex flex-col gap-6 max-w-md w-full text-center items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-white tracking-wide flex items-center justify-center gap-2">
+                  <Coins className="w-6 h-6 text-neon-teal" />
+                  $TERA Daily Faucet
+                </h2>
+                <p className="text-gray-400 text-sm mt-2">
+                  Claim exactly 100 $TERA tokens every 24 hours to test out Trade Easy dApp features.
+                </p>
+              </div>
+
+              <div className="bg-void/50 border border-white/10 rounded-2xl p-6 w-full flex flex-col gap-2 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-neon-teal/5 group-hover:bg-neon-teal/10 transition-colors"></div>
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider relative z-10">Next Claim Available</span>
+                <span className={`text-3xl font-mono font-bold relative z-10 ${countdownStr === "Available Now" ? "text-green-400" : "text-neon-teal text-glow-teal"}`}>
+                  {nextClaimTime === 0 ? "Loading..." : countdownStr}
+                </span>
+              </div>
+
+              <button
+                onClick={handleClaimFaucet}
+                disabled={faucetClaimTx || (countdownStr !== "Available Now" && nextClaimTime !== 0)}
+                className={`w-full py-4 font-bold rounded-xl transition-all duration-300 mt-2 flex items-center justify-center gap-2 border shadow-[0_0_20px_rgba(45,212,191,0.3)] ${
+                  faucetClaimTx || (countdownStr !== "Available Now" && nextClaimTime !== 0)
+                    ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed shadow-none"
+                    : "bg-gradient-to-r from-neon-teal to-teal-800 hover:from-teal-500 hover:to-neon-teal text-white border-teal-500/30"
+                }`}
+              >
+                {faucetClaimTx ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Claiming...
+                  </>
+                ) : (
+                  "Claim 100 $TERA"
+                )}
+              </button>
             </div>
           </div>
         )}
