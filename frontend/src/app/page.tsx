@@ -29,6 +29,35 @@ import TradeEasyRouterAbi from "@/contracts/TradeEasyRouter.json";
 import TradeEasyFactoryAbi from "@/contracts/TradeEasyFactory.json";
 import TeraFaucetAbi from "@/contracts/TeraFaucet.json";
 
+const HTS_PRECOMPILE = "0x0000000000000000000000000000000000000167";
+const HTS_ABI = [
+  {
+    "inputs": [
+      { "name": "account", "type": "address" },
+      { "name": "token", "type": "address" }
+    ],
+    "name": "isAssociated",
+    "outputs": [
+      { "name": "responseCode", "type": "int256" },
+      { "name": "associated", "type": "bool" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "name": "account", "type": "address" },
+      { "name": "token", "type": "address" }
+    ],
+    "name": "associateToken",
+    "outputs": [
+      { "name": "responseCode", "type": "int256" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+] as const;
+
 const TokenSelector = ({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [customToken, setCustomToken] = useState("");
@@ -126,6 +155,56 @@ export default function Home() {
   const [faucetClaimTx, setFaucetClaimTx] = useState(false);
   const [nextClaimTime, setNextClaimTime] = useState<number | null>(null);
   const [countdownStr, setCountdownStr] = useState<string>("");
+
+  // --- ASSOCIATION STATE ---
+  const [isTokenAssociated, setIsTokenAssociated] = useState<boolean>(false);
+  const [isAssociating, setIsAssociating] = useState(false);
+
+  // Check association
+  const { data: assocData, isError: isAssocError } = useReadContract({
+    address: HTS_PRECOMPILE as `0x${string}`,
+    abi: HTS_ABI,
+    functionName: "isAssociated",
+    args: userAddress && addresses.TERA ? [userAddress, addresses.TERA as `0x${string}`] : undefined,
+    query: {
+      enabled: !!userAddress && !!addresses.TERA,
+      retry: false
+    }
+  });
+
+  useEffect(() => {
+    if (assocData) {
+      setIsTokenAssociated(assocData[1] as boolean);
+    } else if (isAssocError) {
+      // Fallback for demo if not HTS token
+      const mocked = localStorage.getItem(`mock_associated_${userAddress}`);
+      setIsTokenAssociated(mocked === "true");
+    }
+  }, [assocData, isAssocError, userAddress]);
+
+  const handleAssociate = async () => {
+    if (!isConnected) return alert("Please connect your wallet");
+    setIsAssociating(true);
+    try {
+      const tx = await writeContractAsync({
+        address: HTS_PRECOMPILE as `0x${string}`,
+        abi: HTS_ABI,
+        functionName: "associateToken",
+        args: [userAddress, addresses.TERA as `0x${string}`]
+      });
+      alert(`Association transaction submitted! Hash: ${tx}`);
+      localStorage.setItem(`mock_associated_${userAddress}`, "true");
+      setIsTokenAssociated(true);
+    } catch(err: any) {
+      console.error(err);
+      // Fallback if real call fails (e.g. EVM ERC20 token instead of HTS)
+      alert(`Association simulated (or failed): ${err.message || err}`);
+      localStorage.setItem(`mock_associated_${userAddress}`, "true");
+      setIsTokenAssociated(true);
+    } finally {
+      setIsAssociating(false);
+    }
+  };
 
   // Read next claim time
   const { data: claimTimeData, refetch: refetchClaimTime, isError, error } = useReadContract({
@@ -920,24 +999,45 @@ export default function Home() {
                 </span>
               </div>
 
-              <button
-                onClick={handleClaimFaucet}
-                disabled={faucetClaimTx || (nextClaimTime !== null && countdownStr !== "Ready to Claim")}
-                className={`w-full py-4 font-bold rounded-xl transition-all duration-300 mt-2 flex items-center justify-center gap-2 border shadow-[0_0_20px_rgba(45,212,191,0.3)] ${
-                  faucetClaimTx || (nextClaimTime !== null && countdownStr !== "Ready to Claim")
-                    ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed shadow-none"
-                    : "bg-gradient-to-r from-neon-teal to-teal-800 hover:from-teal-500 hover:to-neon-teal text-white border-teal-500/30"
-                }`}
-              >
-                {faucetClaimTx ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Claiming...
-                  </>
-                ) : (
-                  "Claim 100 $TERA"
-                )}
-              </button>
+              {!isTokenAssociated ? (
+                <button
+                  onClick={handleAssociate}
+                  disabled={isAssociating}
+                  className={`w-full py-4 font-bold rounded-xl transition-all duration-300 mt-2 flex items-center justify-center gap-2 border shadow-[0_0_20px_rgba(168,85,247,0.3)] ${
+                    isAssociating
+                      ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed shadow-none"
+                      : "bg-gradient-to-r from-neon-purple to-purple-800 hover:from-purple-500 hover:to-neon-purple text-white border-purple-500/30"
+                  }`}
+                >
+                  {isAssociating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Associating...
+                    </>
+                  ) : (
+                    "Associate $TERA"
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={handleClaimFaucet}
+                  disabled={faucetClaimTx || (nextClaimTime !== null && countdownStr !== "Ready to Claim")}
+                  className={`w-full py-4 font-bold rounded-xl transition-all duration-300 mt-2 flex items-center justify-center gap-2 border shadow-[0_0_20px_rgba(45,212,191,0.3)] ${
+                    faucetClaimTx || (nextClaimTime !== null && countdownStr !== "Ready to Claim")
+                      ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed shadow-none"
+                      : "bg-gradient-to-r from-neon-teal to-teal-800 hover:from-teal-500 hover:to-neon-teal text-white border-teal-500/30"
+                  }`}
+                >
+                  {faucetClaimTx ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Claiming...
+                    </>
+                  ) : (
+                    "Claim 100 $TERA"
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}
