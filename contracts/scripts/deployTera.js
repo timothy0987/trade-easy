@@ -3,99 +3,47 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
-  console.log("Deploying tokens with account:", deployer.address);
+    console.log("Starting Trade Easy deployment to Hedera TestNet...");
 
-  // Read addresses.json
-  const addressesPath = path.join(__dirname, "../../frontend/src/contracts/addresses.json");
-  if (!fs.existsSync(addressesPath)) {
-    throw new Error(`addresses.json not found at: ${addressesPath}`);
-  }
-  const addresses = JSON.parse(fs.readFileSync(addressesPath, "utf8"));
+    const [deployer] = await hre.ethers.getSigners();
+    console.log("Deploying contracts with account:", deployer.address);
 
-  // Deploy TERA
-  console.log("Deploying TERA token...");
-  const TERAFactory = await hre.ethers.getContractFactory("TERA");
-  const tera = await TERAFactory.deploy({ gasLimit: 3000000n });
-  await tera.waitForDeployment();
-  const teraAddress = await tera.getAddress();
-  console.log("TERA deployed to:", teraAddress);
+    // 1. Deploy the $TERA Token (Using your existing HTS Creator or standard ERC20)
+    // Assuming a standard ERC20 mock for the testnet environment for seamless AMM integration
+    const Tera = await hre.ethers.getContractFactory("MockTERA"); // Ensure you have a standard ERC20 MockTERA compiled
+    const tera = await Tera.deploy("Trade Easy Token", "TERA", 18);
+    await tera.waitForDeployment();
+    const teraAddress = await tera.getAddress();
+    console.log("$TERA Token deployed to:", teraAddress);
 
-  // Deploy MockHBAR
-  console.log("Deploying MockHBAR token...");
-  const MockHBARFactory = await hre.ethers.getContractFactory("MockHBAR");
-  const hbar = await MockHBARFactory.deploy({ gasLimit: 3000000n });
-  await hbar.waitForDeployment();
-  const hbarAddress = await hbar.getAddress();
-  console.log("MockHBAR deployed to:", hbarAddress);
+    // 2. Deploy the TeraFaucet (The Treasury Vault)
+    const Faucet = await hre.ethers.getContractFactory("TeraFaucet");
+    const faucet = await Faucet.deploy(teraAddress);
+    await faucet.waitForDeployment();
+    const faucetAddress = await faucet.getAddress();
+    console.log("TeraFaucet Treasury deployed to:", faucetAddress);
 
-  // Deploy TeraFaucet
-  console.log("Deploying TeraFaucet...");
-  const FaucetFactory = await hre.ethers.getContractFactory("TeraFaucet");
-  const faucet = await FaucetFactory.deploy(teraAddress, { gasLimit: 3000000n });
-  await faucet.waitForDeployment();
-  const faucetAddress = await faucet.getAddress();
-  console.log("TeraFaucet deployed to:", faucetAddress);
+    // 3. Fund the Treasury
+    // Mint or transfer 5,000,000 $TERA (with 18 decimals) directly to the Faucet contract
+    const treasuryFundingAmount = hre.ethers.parseUnits("5000000", 18);
+    console.log("Funding the Faucet Treasury with 5,000,000 $TERA...");
+    
+    const fundTx = await tera.transfer(faucetAddress, treasuryFundingAmount);
+    await fundTx.wait();
+    console.log("Faucet Treasury successfully funded!");
 
-  // Mint initial supply to deployer for AMM
-  console.log("Minting 10,000 TERA and MockHBAR to deployer...");
-  const amount = hre.ethers.parseEther("10000");
-  await (await tera.mint(deployer.address, amount)).wait();
-  await (await hbar.mint(deployer.address, amount)).wait();
+    // 4. Save Addresses for the Frontend
+    const addresses = {
+        TERA: teraAddress,
+        Faucet: faucetAddress
+    };
 
-  // Mint treasury supply to deployer and transfer to Faucet
-  console.log("Minting 5,000,000 TERA for Faucet treasury...");
-  const treasuryAmount = hre.ethers.parseEther("5000000");
-  await (await tera.mint(deployer.address, treasuryAmount)).wait();
-  await (await tera.transfer(faucetAddress, treasuryAmount)).wait();
-
-  // Add Liquidity
-  const routerAddress = addresses.TradeEasyRouter;
-  if (!routerAddress) throw new Error("TradeEasyRouter address not found");
-  
-  console.log("Approving router to spend tokens...");
-  await (await tera.approve(routerAddress, amount)).wait();
-  await (await hbar.approve(routerAddress, amount)).wait();
-
-  console.log("Adding 1:1 liquidity to TERA/HBAR pool...");
-  const TradeEasyRouter = await hre.ethers.getContractAt("TradeEasyRouter", routerAddress);
-  const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
-
-  await (await TradeEasyRouter.addLiquidity(
-    teraAddress,
-    hbarAddress,
-    amount,
-    amount,
-    0, // minAmountA
-    0, // minAmountB
-    deployer.address,
-    deadline,
-    { gasLimit: 5000000n }
-  )).wait();
-  console.log("Liquidity added successfully!");
-
-  // Update addresses.json
-  addresses.TERA = teraAddress;
-  addresses.MockHBAR = hbarAddress;
-  addresses.TeraFaucet = faucetAddress;
-  fs.writeFileSync(addressesPath, JSON.stringify(addresses, null, 2));
-  console.log("Successfully updated addresses.json with new addresses.");
-
-  // Save ABIs
-  const outputDir = path.join(__dirname, "../../frontend/src/contracts");
-  const teraArtifact = hre.artifacts.readArtifactSync("TERA");
-  const hbarArtifact = hre.artifacts.readArtifactSync("MockHBAR");
-  const faucetArtifact = hre.artifacts.readArtifactSync("TeraFaucet");
-
-  fs.writeFileSync(path.join(outputDir, "TERA.json"), JSON.stringify(teraArtifact.abi, null, 2));
-  fs.writeFileSync(path.join(outputDir, "MockHBAR.json"), JSON.stringify(hbarArtifact.abi, null, 2));
-  fs.writeFileSync(path.join(outputDir, "TeraFaucet.json"), JSON.stringify(faucetArtifact.abi, null, 2));
-  console.log("ABIs successfully written to frontend src/contracts folder.");
+    const frontendPath = path.join(__dirname, "../../frontend/src/contracts/addresses.json");
+    fs.writeFileSync(frontendPath, JSON.stringify(addresses, null, 2));
+    console.log("Frontend addresses updated!");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
+main().catch((error) => {
     console.error(error);
-    process.exit(1);
-  });
+    process.exitCode = 1;
+});
