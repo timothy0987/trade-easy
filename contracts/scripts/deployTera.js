@@ -32,6 +32,14 @@ async function main() {
     await fundTx.wait();
     console.log("Faucet Treasury successfully funded!");
 
+    // 2.5 Deploy Mock USDC
+    console.log("Deploying Mock USDC token...");
+    const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
+    const usdc = await MockUSDC.deploy();
+    await usdc.waitForDeployment();
+    const usdcAddress = await usdc.getAddress();
+    console.log("Mock USDC deployed to:", usdcAddress);
+
     // 4. Save Addresses for the Frontend
     // We will preserve existing addresses so frontend components don't break
     const frontendPath = path.join(__dirname, "../../frontend/src/contracts/addresses.json");
@@ -40,8 +48,39 @@ async function main() {
         addresses = JSON.parse(fs.readFileSync(frontendPath, "utf8"));
     }
     
+    // 5. Initialize AMM liquidity for TERA/USDC
+    const routerAddress = addresses.TradeEasyRouter;
+    if (routerAddress) {
+        console.log("Adding 1:1 liquidity to TERA/USDC pool...");
+        const TradeEasyRouter = await hre.ethers.getContractAt("TradeEasyRouter", routerAddress);
+        
+        // 10,000 TERA and 10,000 USDC
+        const teraLpAmount = hre.ethers.parseUnits("10000", 18);
+        const usdcLpAmount = hre.ethers.parseUnits("10000", 6);
+
+        await (await tera.approve(routerAddress, teraLpAmount)).wait();
+        await (await usdc.approve(routerAddress, usdcLpAmount)).wait();
+
+        const deadline = Math.floor(Date.now() / 1000) + 600;
+        await (await TradeEasyRouter.addLiquidity(
+            teraAddress,
+            usdcAddress,
+            teraLpAmount,
+            usdcLpAmount,
+            0,
+            0,
+            deployer.address,
+            deadline,
+            { gasLimit: 5000000n }
+        )).wait();
+        console.log("TERA/USDC Liquidity added successfully!");
+    } else {
+        console.log("TradeEasyRouter not found. Skipping liquidity initialization.");
+    }
+
     addresses.TERA = teraAddress;
     addresses.TeraFaucet = faucetAddress;
+    addresses.USDC = usdcAddress;
 
     fs.writeFileSync(frontendPath, JSON.stringify(addresses, null, 2));
     console.log("Frontend addresses updated!");

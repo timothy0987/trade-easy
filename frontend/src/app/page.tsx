@@ -62,9 +62,11 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
   const [isOpen, setIsOpen] = useState(false);
   const [customToken, setCustomToken] = useState("");
   const teraAddress = (addresses as any).TERA;
+  const usdcAddress = (addresses as any).USDC;
   const isHbar = value === "HBAR";
   const isTera = teraAddress && value === teraAddress;
-  const isCustom = value !== "" && !isHbar && !isTera;
+  const isUsdc = usdcAddress && value === usdcAddress;
+  const isCustom = value !== "" && !isHbar && !isTera && !isUsdc;
 
   return (
     <div className="flex flex-col gap-1.5 relative">
@@ -74,7 +76,7 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className="text-white text-sm truncate pr-2">
-          {isHbar ? "HBAR" : isTera ? "TERA" : isCustom ? value : placeholder}
+          {isHbar ? "HBAR" : isTera ? "TERA" : isUsdc ? "USDC" : isCustom ? value : placeholder}
         </span>
         <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-300 flex-shrink-0 ${isOpen ? "rotate-90" : ""}`} />
       </div>
@@ -94,6 +96,15 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
             >
               TERA 
               <span className="text-[10px] uppercase tracking-wider bg-neon-purple/20 text-neon-purple px-2 py-0.5 rounded-full border border-neon-purple/30 text-glow-purple shadow-[0_0_10px_rgba(168,85,247,0.5)]">Native Token</span>
+            </div>
+          )}
+          {usdcAddress && (
+            <div 
+              className="px-4 py-3 hover:bg-blue-500/10 hover:text-blue-400 cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group border-t border-white/5"
+              onClick={() => { onChange(usdcAddress); setIsOpen(false); }}
+            >
+              USDC 
+              <span className="text-[10px] uppercase tracking-wider bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.5)]">Stablecoin</span>
             </div>
           )}
           <div 
