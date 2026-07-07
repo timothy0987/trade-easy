@@ -43,6 +43,12 @@ async function main() {
   await (await tera.mint(deployer.address, amount)).wait();
   await (await hbar.mint(deployer.address, amount)).wait();
 
+  // Mint treasury supply to deployer and transfer to Faucet
+  console.log("Minting 5,000,000 TERA for Faucet treasury...");
+  const treasuryAmount = hre.ethers.parseEther("5000000");
+  await (await tera.mint(deployer.address, treasuryAmount)).wait();
+  await (await tera.transfer(faucetAddress, treasuryAmount)).wait();
+
   // Add Liquidity
   const routerAddress = addresses.TradeEasyRouter;
   if (!routerAddress) throw new Error("TradeEasyRouter address not found");

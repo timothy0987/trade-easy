@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 interface ITERA {
-    function mint(address to, uint256 amount) external;
+    function transfer(address to, uint256 amount) external returns (bool);
 }
 
 contract TeraFaucet {
@@ -22,7 +22,7 @@ contract TeraFaucet {
         // Update next claim time
         nextClaimTime[msg.sender] = block.timestamp + LOCK_DURATION;
 
-        // Mint 100 TERA to the caller
-        ITERA(teraToken).mint(msg.sender, CLAIM_AMOUNT);
+        // Transfer 100 TERA to the caller
+        require(ITERA(teraToken).transfer(msg.sender, CLAIM_AMOUNT), "Transfer failed");
     }
 }
