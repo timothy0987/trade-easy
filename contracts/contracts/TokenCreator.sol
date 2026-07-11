@@ -82,7 +82,7 @@ contract TokenCreator {
         // Set up the expiry parameters
         IHederaTokenService.Expiry memory expiry = IHederaTokenService.Expiry({
             second: 0,
-            autoRenewAccount: address(this),
+            autoRenewAccount: address(0),
             autoRenewPeriod: 7890000 // ~3 months in seconds
         });
 
@@ -138,5 +138,13 @@ contract TokenCreator {
      */
     function getUserTokens(address user) external view returns (address[] memory) {
         return userTokens[user];
+    }
+
+    /**
+     * @notice Allows the contract to transfer tokens out of its treasury
+     */
+    function transferOut(address token, address to, uint256 amount) external {
+        (bool success, bytes memory result) = token.call(abi.encodeWithSignature("transfer(address,uint256)", to, amount));
+        require(success, "Transfer out failed");
     }
 }
