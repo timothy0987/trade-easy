@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { 
   useAccount, 
@@ -20,7 +21,8 @@ import {
   ShieldAlert, 
   CheckCircle2, 
   Loader2,
-  ExternalLink
+  ExternalLink,
+  User
 } from "lucide-react";
 
 import addresses from "@/contracts/addresses.json";
@@ -601,6 +603,13 @@ export default function Home() {
             <Coins className="w-4 h-4" />
             Faucet
           </button>
+          <Link
+            href="/profile"
+            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 text-gray-400 hover:text-white"
+          >
+            <User className="w-4 h-4" />
+            Profile
+          </Link>
         </div>
         <ConnectButton showBalance={false} chainStatus="none" accountStatus="avatar" />
       </nav>
