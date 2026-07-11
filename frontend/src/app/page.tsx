@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { CustomConnectButton } from "@/components/CustomConnectButton";
 import { 
   useAccount, 
   useWriteContract, 
@@ -611,7 +612,7 @@ export default function Home() {
             Profile
           </Link>
         </div>
-        <ConnectButton showBalance={false} chainStatus="none" accountStatus="avatar" />
+        <CustomConnectButton />
       </nav>
 
       {/* Main Container */}

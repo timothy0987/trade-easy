@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { CustomConnectButton } from "@/components/CustomConnectButton";
 import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
+import { fetchHederaAccountId } from "@/utils/hedera";
 import { formatEther, formatUnits } from "viem";
 import { 
   Coins, 
@@ -38,8 +40,19 @@ export default function Profile() {
   const { address: userAddress, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [editName, setEditName] = React.useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [hederaId, setHederaId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isConnected && userAddress) {
+      fetchHederaAccountId(userAddress).then((id) => {
+        if (id) setHederaId(id);
+      });
+    } else {
+      setHederaId(null);
+    }
+  }, [isConnected, userAddress]);
 
   // Fetch Balances
   const { data: hbarBalance } = useBalance({ 
@@ -153,7 +166,7 @@ export default function Profile() {
             Profile
           </div>
         </div>
-        <ConnectButton showBalance={false} chainStatus="none" accountStatus="avatar" />
+        <CustomConnectButton />
       </nav>
 
       {/* Main Container */}
@@ -210,7 +223,7 @@ export default function Profile() {
                 )}
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-gray-400 font-mono text-sm bg-black/30 px-3 py-1 w-fit mx-auto sm:mx-0 rounded-full border border-white/5">
                   <Wallet className="w-4 h-4 text-neon-teal" />
-                  {shortAddress}
+                  {hederaId || shortAddress}
                 </div>
               </>
             ) : (
