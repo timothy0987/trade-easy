@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useBalance, useReadContract } from "wagmi";
+import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
 import { formatEther, formatUnits } from "viem";
 import { 
   Coins, 
@@ -14,11 +14,15 @@ import {
   Wallet,
   ExternalLink,
   Activity,
-  Layers
+  Layers,
+  Edit2,
+  Check,
+  X
 } from "lucide-react";
 
 import addresses from "@/contracts/addresses.json";
 import TokenCreatorAbi from "@/contracts/TokenCreator.json";
+import UserProfileAbi from "@/contracts/UserProfile.json";
 
 const ERC20_ABI = [
   {
@@ -32,6 +36,10 @@ const ERC20_ABI = [
 
 export default function Profile() {
   const { address: userAddress, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editName, setEditName] = React.useState("");
 
   // Fetch Balances
   const { data: hbarBalance } = useBalance({ 
@@ -63,6 +71,34 @@ export default function Profile() {
     args: userAddress ? [userAddress] : undefined,
     query: { enabled: !!userAddress }
   });
+
+  // Fetch Username
+  const { data: usernameData, refetch: refetchUsername } = useReadContract({
+    address: (addresses as any).UserProfile as `0x${string}`,
+    abi: UserProfileAbi,
+    functionName: "usernames",
+    args: userAddress ? [userAddress] : undefined,
+    query: { enabled: !!userAddress, refetchInterval: 5000 }
+  });
+
+  const username = usernameData ? (usernameData as string) : "";
+  const displayUsername = username || "Set your username";
+
+  const handleSaveUsername = async () => {
+    if (!editName.trim()) return;
+    try {
+      await writeContractAsync({
+        address: (addresses as any).UserProfile as `0x${string}`,
+        abi: UserProfileAbi,
+        functionName: "setUsername",
+        args: [editName]
+      });
+      setIsEditing(false);
+      refetchUsername();
+    } catch (error) {
+      console.error("Error setting username:", error);
+    }
+  };
 
   const shortAddress = userAddress ? `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}` : "";
   const gradientStyle = userAddress ? {
@@ -135,9 +171,43 @@ export default function Profile() {
           <div className="z-10 text-center sm:text-left flex-1">
             {isConnected ? (
               <>
-                <h1 className="text-3xl font-bold text-white tracking-wide mb-1 text-glow-white">
-                  Adesokan Timothy Olashile
-                </h1>
+                {isEditing ? (
+                  <div className="flex items-center gap-2 mb-2 justify-center sm:justify-start">
+                    <input 
+                      type="text" 
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Enter new username"
+                      className="bg-black/40 border border-neon-teal/50 rounded-lg px-3 py-1 text-white focus:outline-none focus:ring-1 focus:ring-neon-teal"
+                      autoFocus
+                    />
+                    <button 
+                      onClick={handleSaveUsername}
+                      className="p-1.5 bg-neon-teal/20 text-neon-teal rounded-lg hover:bg-neon-teal hover:text-black transition-colors"
+                      title="Save"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => setIsEditing(false)}
+                      className="p-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                      title="Cancel"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <h1 className="text-3xl font-bold text-white tracking-wide mb-1 text-glow-white flex items-center justify-center sm:justify-start gap-3 group">
+                    {displayUsername}
+                    <button 
+                      onClick={() => { setEditName(username); setIsEditing(true); }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/10 rounded-full"
+                      title="Edit Username"
+                    >
+                      <Edit2 className="w-4 h-4 text-gray-400 hover:text-neon-teal" />
+                    </button>
+                  </h1>
+                )}
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-gray-400 font-mono text-sm bg-black/30 px-3 py-1 w-fit mx-auto sm:mx-0 rounded-full border border-white/5">
                   <Wallet className="w-4 h-4 text-neon-teal" />
                   {shortAddress}
