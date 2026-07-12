@@ -376,7 +376,8 @@ export default function Home() {
 
       console.log("Approving Token A...");
       await writeContractAsync({
-        ...tokenAContract,
+        address: tokenA as `0x${string}`,
+        abi: tokenAContract.abi,
         functionName: "approve",
         args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountA]
       });
@@ -400,7 +401,8 @@ export default function Home() {
 
       console.log("Approving Token B...");
       await writeContractAsync({
-        ...tokenBContract,
+        address: tokenB as `0x${string}`,
+        abi: tokenBContract.abi,
         functionName: "approve",
         args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountB]
       });
@@ -480,7 +482,8 @@ export default function Home() {
 
         console.log("Approving Token In...");
         await writeContractAsync({
-          ...tokenAContract,
+          address: tokenA as `0x${string}`,
+          abi: tokenAContract.abi,
           functionName: "approve",
           args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountIn]
         });
