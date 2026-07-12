@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-    console.log("Starting Treasury Funding Script...");
+    console.log("Starting USDC Treasury Funding Script...");
 
     const [deployer] = await hre.ethers.getSigners();
     console.log("Using deployer wallet:", deployer.address);
@@ -14,42 +14,34 @@ async function main() {
     }
 
     const addresses = JSON.parse(fs.readFileSync(frontendPath, "utf8"));
-    const teraAddress = addresses.TERA;
-    const faucetAddress = addresses.TeraFaucet;
+    const usdcAddress = addresses.USDC;
+    const treasuryAddress = "0x8C7ee3Fe0A34F864723A2C58ce8fE4342fC296Cf";
 
-    if (!teraAddress || !faucetAddress) {
-        throw new Error("TERA or TeraFaucet address not found in addresses.json!");
+    if (!usdcAddress) {
+        throw new Error("USDC address not found in addresses.json!");
     }
 
-    console.log(`TERA Address: ${teraAddress}`);
-    console.log(`TeraFaucet Address: ${faucetAddress}`);
+    console.log(`USDC Address: ${usdcAddress}`);
+    console.log(`Treasury Address: ${treasuryAddress}`);
 
-    const teraABI = [
+    const tokenABI = [
         "function transfer(address to, uint256 amount) returns (bool)",
         "function decimals() view returns (uint8)"
     ];
 
-    const tera = new hre.ethers.Contract(teraAddress, teraABI, deployer);
+    const usdc = new hre.ethers.Contract(usdcAddress, tokenABI, deployer);
 
-    // Fetch decimals to ensure correct funding amount.
-    // If it's HTS, it might have 8 decimals. If ERC20 Mock, 18.
-    let decimals = 18;
-    try {
-        decimals = await tera.decimals();
-    } catch (e) {
-        console.log("Could not fetch decimals, defaulting to 18");
-    }
-
+    const decimals = 6;
     console.log(`Token has ${decimals} decimals.`);
     
     const fundAmount = hre.ethers.parseUnits("5000000", decimals);
-    console.log(`Executing transfer of 5,000,000 TERA to Faucet...`);
+    console.log(`Executing transfer of 5,000,000 USDC to Treasury...`);
 
-    const tx = await tera.transfer(faucetAddress, fundAmount, { gasLimit: 2000000 });
+    const tx = await usdc.transfer(treasuryAddress, fundAmount, { gasLimit: 2000000 });
     console.log("Transaction submitted:", tx.hash);
     
     await tx.wait();
-    console.log("Faucet Funded Successfully!");
+    console.log("Treasury Funded Successfully with USDC!");
 }
 
 main().catch((error) => {
