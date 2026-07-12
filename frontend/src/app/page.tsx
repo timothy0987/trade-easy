@@ -8,9 +8,10 @@ import {
   useAccount, 
   useWriteContract, 
   useReadContract,
-  usePublicClient 
+  usePublicClient,
+  useWalletClient 
 } from "wagmi";
-import { parseEther, formatEther } from "viem";
+import { parseEther, formatEther, encodeFunctionData, toHex } from "viem";
 import { 
   Coins, 
   ArrowLeftRight, 
@@ -137,6 +138,7 @@ export default function Home() {
   const { address: userAddress, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
 
   // --- MINT STATE ---
   const [tokenName, setTokenName] = useState("");
@@ -457,41 +459,49 @@ export default function Home() {
     e.preventDefault();
     if (!isConnected) return showToast("Please connect your wallet");
     if (!tokenA || !tokenB || !swapAmountIn) return showToast("Please fill all fields");
+    if (!walletClient && !(window as any).ethereum) return showToast("No wallet client found");
 
     setIsSwapping(true);
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
 
-      if (needsApproval) {
-        // Approve router to spend tokenA
-        const tokenAContract = {
-          address: tokenA as `0x${string}`,
-          abi: [
-            {
-              name: "approve",
-              type: "function",
-              stateMutability: "nonpayable",
-              inputs: [
-                { name: "spender", type: "address" },
-                { name: "amount", type: "uint256" }
-              ],
-              outputs: [{ type: "bool" }]
-            }
-          ]
-        } as const;
+      const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
+        const txParams: any = {
+          from: userAddress,
+          to: toAddress,
+          data: dataHex,
+        };
+        if (valueHex) txParams.value = valueHex;
 
+        let txHash;
+        if (walletClient) {
+          txHash = await walletClient.request({
+            method: 'eth_sendTransaction',
+            params: [txParams]
+          });
+        } else {
+          txHash = await (window as any).ethereum.request({
+            method: 'eth_sendTransaction',
+            params: [txParams]
+          });
+        }
+        return txHash;
+      };
+
+      if (needsApproval) {
         console.log("Approving Token In...");
-        await writeContractAsync({
-          address: tokenA as `0x${string}`,
-          abi: tokenAContract.abi,
+        
+        const approveData = encodeFunctionData({
+          abi: [{ name: "approve", type: "function", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }] }],
           functionName: "approve",
           args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountIn]
         });
+
+        await sendRawTransaction(tokenA, approveData);
         
         await refetchAllowance();
         showToast("Approval successful. You can now execute the swap.");
       } else {
-        // Swap translation dictionary
         const WHBAR_ADDRESS = "0x000000000000000000000000000000000000016a";
         const tA = tokenA === "HBAR" ? WHBAR_ADDRESS : tokenA;
         const tB = tokenB === "HBAR" ? WHBAR_ADDRESS : tokenB;
@@ -499,48 +509,30 @@ export default function Home() {
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
         const path = [tA, tB];
 
-        console.log("Executing swap with routing...");
+        console.log("Executing swap with raw RPC routing...");
         
         let tx;
         if (tokenA === "HBAR") {
-          tx = await writeContractAsync({
-            address: addresses.TradeEasyRouter as `0x${string}`,
+          const swapData = encodeFunctionData({
             abi: TradeEasyRouterAbi,
             functionName: "swapExactETHForTokens",
-            value: parsedAmountIn,
-            args: [
-              0n, // Min amount out
-              path,
-              userAddress,
-              deadline
-            ]
+            args: [0n, path, userAddress, deadline]
           });
+          tx = await sendRawTransaction(addresses.TradeEasyRouter, swapData, toHex(parsedAmountIn));
         } else if (tokenB === "HBAR") {
-          tx = await writeContractAsync({
-            address: addresses.TradeEasyRouter as `0x${string}`,
+          const swapData = encodeFunctionData({
             abi: TradeEasyRouterAbi,
             functionName: "swapExactTokensForETH",
-            args: [
-              parsedAmountIn,
-              0n, // Min amount out
-              path,
-              userAddress,
-              deadline
-            ]
+            args: [parsedAmountIn, 0n, path, userAddress, deadline]
           });
+          tx = await sendRawTransaction(addresses.TradeEasyRouter, swapData);
         } else {
-          tx = await writeContractAsync({
-            address: addresses.TradeEasyRouter as `0x${string}`,
+          const swapData = encodeFunctionData({
             abi: TradeEasyRouterAbi,
             functionName: "swapExactTokensForTokens",
-            args: [
-              parsedAmountIn,
-              0n, // Min amount out
-              path,
-              userAddress,
-              deadline
-            ]
+            args: [parsedAmountIn, 0n, path, userAddress, deadline]
           });
+          tx = await sendRawTransaction(addresses.TradeEasyRouter, swapData);
         }
 
         showToast(`Swap completed successfully! Hash: ${tx}`);
