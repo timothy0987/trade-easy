@@ -155,6 +155,11 @@ export default function Home() {
   const [swapAmountIn, setSwapAmountIn] = useState("");
   const [slippage, setSlippage] = useState("0.5");
   const [isSwapping, setIsSwapping] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(""), 5000);
+  };
   const [isAddingLiquidity, setIsAddingLiquidity] = useState(false);
 
   // --- AI AGENT STATE ---
@@ -430,63 +435,87 @@ export default function Home() {
     }
   };
 
+
+  // Check allowance for Token A
+  const { data: tokenAAllowance, refetch: refetchAllowance } = useReadContract({
+    address: tokenA && tokenA !== "HBAR" ? tokenA as `0x${string}` : undefined,
+    abi: [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] }],
+    functionName: "allowance",
+    args: userAddress && addresses.TradeEasyRouter ? [userAddress, addresses.TradeEasyRouter as `0x${string}`] : undefined,
+    query: {
+      enabled: !!userAddress && !!tokenA && tokenA !== "HBAR",
+    }
+  });
+
+  const parsedSwapAmountIn = swapAmountIn ? parseEther(swapAmountIn) : 0n;
+  const needsApproval = tokenA !== "HBAR" && tokenA !== "" && tokenAAllowance !== undefined && (tokenAAllowance as bigint) < parsedSwapAmountIn;
+
   // --- SWAP SUBMIT ---
   const handleSwap = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isConnected) return alert("Please connect your wallet");
-    if (!tokenA || !tokenB || !swapAmountIn) return alert("Please fill all fields");
+    if (!isConnected) return showToast("Please connect your wallet");
+    if (!tokenA || !tokenB || !swapAmountIn) return showToast("Please fill all fields");
 
     setIsSwapping(true);
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
 
-      // Approve router to spend tokenA
-      const tokenAContract = {
-        address: tokenA as `0x${string}`,
-        abi: [
-          {
-            name: "approve",
-            type: "function",
-            stateMutability: "nonpayable",
-            inputs: [
-              { name: "spender", type: "address" },
-              { name: "amount", type: "uint256" }
-            ],
-            outputs: [{ type: "bool" }]
-          }
-        ]
-      } as const;
+      if (needsApproval) {
+        // Approve router to spend tokenA
+        const tokenAContract = {
+          address: tokenA as `0x${string}`,
+          abi: [
+            {
+              name: "approve",
+              type: "function",
+              stateMutability: "nonpayable",
+              inputs: [
+                { name: "spender", type: "address" },
+                { name: "amount", type: "uint256" }
+              ],
+              outputs: [{ type: "bool" }]
+            }
+          ]
+        } as const;
 
-      console.log("Approving Token In...");
-      await writeContractAsync({
-        ...tokenAContract,
-        functionName: "approve",
-        args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountIn]
-      });
+        console.log("Approving Token In...");
+        await writeContractAsync({
+          ...tokenAContract,
+          functionName: "approve",
+          args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountIn]
+        });
+        
+        await refetchAllowance();
+        showToast("Approval successful. You can now execute the swap.");
+      } else {
+        // Swap
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+        const path = [tokenA, tokenB];
 
-      // Swap
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
-      const path = [tokenA, tokenB];
+        console.log("Executing swap...");
+        const tx = await writeContractAsync({
+          address: addresses.TradeEasyRouter as `0x${string}`,
+          abi: TradeEasyRouterAbi,
+          functionName: "swapExactTokensForTokens",
+          args: [
+            parsedAmountIn,
+            0n, // Min amount out
+            path,
+            userAddress,
+            deadline
+          ]
+        });
 
-      console.log("Executing swap...");
-      const tx = await writeContractAsync({
-        address: addresses.TradeEasyRouter as `0x${string}`,
-        abi: TradeEasyRouterAbi,
-        functionName: "swapExactTokensForTokens",
-        args: [
-          parsedAmountIn,
-          0n, // Min amount out
-          path,
-          userAddress,
-          deadline
-        ]
-      });
-
-      alert(`Swap completed successfully! Hash: ${tx}`);
-      setSwapAmountIn("");
+        showToast(`Swap completed successfully! Hash: ${tx}`);
+        setSwapAmountIn("");
+      }
     } catch (err: any) {
       console.error(err);
-      alert(`Swap failed: ${err.message || err}`);
+      if (err.message?.includes("User rejected") || err.message?.includes("User denied") || err.code === 4001 || err.message?.includes("4001")) {
+        showToast("Transaction rejected by user.");
+      } else {
+        showToast(`Swap failed: ${err.message || err}`);
+      }
     } finally {
       setIsSwapping(false);
     }
@@ -796,8 +825,10 @@ export default function Home() {
                   {isSwapping ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Swapping...
+                      {needsApproval ? "Approving..." : "Swapping..."}
                     </>
+                  ) : needsApproval ? (
+                    "Approve Token"
                   ) : (
                     "Execute Swap"
                   )}
@@ -1064,6 +1095,12 @@ export default function Home() {
         )}
 
       </div>
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 bg-[#1a1c23] border border-white/10 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-fadeIn flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 text-neon-teal" />
+          <p className="text-sm font-medium">{toastMessage}</p>
+        </div>
+      )}
     </main>
   );
 }
