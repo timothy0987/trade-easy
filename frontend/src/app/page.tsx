@@ -491,23 +491,57 @@ export default function Home() {
         await refetchAllowance();
         showToast("Approval successful. You can now execute the swap.");
       } else {
-        // Swap
+        // Swap translation dictionary
+        const WHBAR_ADDRESS = "0x000000000000000000000000000000000000016a";
+        const tA = tokenA === "HBAR" ? WHBAR_ADDRESS : tokenA;
+        const tB = tokenB === "HBAR" ? WHBAR_ADDRESS : tokenB;
+        
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
-        const path = [tokenA, tokenB];
+        const path = [tA, tB];
 
-        console.log("Executing swap...");
-        const tx = await writeContractAsync({
-          address: addresses.TradeEasyRouter as `0x${string}`,
-          abi: TradeEasyRouterAbi,
-          functionName: "swapExactTokensForTokens",
-          args: [
-            parsedAmountIn,
-            0n, // Min amount out
-            path,
-            userAddress,
-            deadline
-          ]
-        });
+        console.log("Executing swap with routing...");
+        
+        let tx;
+        if (tokenA === "HBAR") {
+          tx = await writeContractAsync({
+            address: addresses.TradeEasyRouter as `0x${string}`,
+            abi: TradeEasyRouterAbi,
+            functionName: "swapExactETHForTokens",
+            value: parsedAmountIn,
+            args: [
+              0n, // Min amount out
+              path,
+              userAddress,
+              deadline
+            ]
+          });
+        } else if (tokenB === "HBAR") {
+          tx = await writeContractAsync({
+            address: addresses.TradeEasyRouter as `0x${string}`,
+            abi: TradeEasyRouterAbi,
+            functionName: "swapExactTokensForETH",
+            args: [
+              parsedAmountIn,
+              0n, // Min amount out
+              path,
+              userAddress,
+              deadline
+            ]
+          });
+        } else {
+          tx = await writeContractAsync({
+            address: addresses.TradeEasyRouter as `0x${string}`,
+            abi: TradeEasyRouterAbi,
+            functionName: "swapExactTokensForTokens",
+            args: [
+              parsedAmountIn,
+              0n, // Min amount out
+              path,
+              userAddress,
+              deadline
+            ]
+          });
+        }
 
         showToast(`Swap completed successfully! Hash: ${tx}`);
         setSwapAmountIn("");
