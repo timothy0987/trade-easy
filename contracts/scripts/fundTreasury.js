@@ -6,7 +6,7 @@ async function main() {
     console.log("Starting Treasury Funding Script...");
 
     const [deployer] = await hre.ethers.getSigners();
-    console.log("Using account:", deployer.address);
+    console.log("Using deployer wallet:", deployer.address);
 
     const frontendPath = path.join(__dirname, "../../frontend/src/contracts/addresses.json");
     if (!fs.existsSync(frontendPath)) {
@@ -22,37 +22,37 @@ async function main() {
     }
 
     console.log(`TERA Address: ${teraAddress}`);
-    console.log(`Faucet Address: ${faucetAddress}`);
+    console.log(`TeraFaucet Address: ${faucetAddress}`);
 
-    // Assuming standard ERC20 interface
     const teraABI = [
         "function transfer(address to, uint256 amount) returns (bool)",
-        "function balanceOf(address account) view returns (uint256)"
+        "function decimals() view returns (uint8)"
     ];
 
     const tera = new hre.ethers.Contract(teraAddress, teraABI, deployer);
 
-    const initialBalance = await tera.balanceOf(deployer.address);
-    console.log(`Deployer initial TERA balance: ${hre.ethers.formatEther(initialBalance)}`);
-
-    const fundAmount = hre.ethers.parseUnits("5000000", 18);
-    
-    if (initialBalance < fundAmount) {
-        console.warn("WARNING: Deployer balance is less than 5,000,000 TERA! Transfer may fail if not enough funds.");
+    // Fetch decimals to ensure correct funding amount.
+    // If it's HTS, it might have 8 decimals. If ERC20 Mock, 18.
+    let decimals = 18;
+    try {
+        decimals = await tera.decimals();
+    } catch (e) {
+        console.log("Could not fetch decimals, defaulting to 18");
     }
 
-    console.log(`Transferring 5,000,000 TERA to Faucet...`);
-    const tx = await tera.transfer(faucetAddress, fundAmount);
-    console.log(`Transaction sent! Hash: ${tx.hash}`);
+    console.log(`Token has ${decimals} decimals.`);
+    
+    const fundAmount = hre.ethers.parseUnits("5000000", decimals);
+    console.log(`Executing transfer of 5,000,000 TERA to Faucet...`);
+
+    const tx = await tera.transfer(faucetAddress, fundAmount, { gasLimit: 2000000 });
+    console.log("Transaction submitted:", tx.hash);
     
     await tx.wait();
-    console.log("Transfer confirmed!");
-    
-    const faucetBalance = await tera.balanceOf(faucetAddress);
-    console.log(`New Faucet TERA balance: ${hre.ethers.formatEther(faucetBalance)}`);
+    console.log("Faucet Funded Successfully!");
 }
 
 main().catch((error) => {
-    console.error(error);
+    console.error("Error funding treasury:", error);
     process.exitCode = 1;
 });
