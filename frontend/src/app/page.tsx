@@ -353,80 +353,72 @@ export default function Home() {
     e.preventDefault();
     if (!isConnected) return alert("Please connect your wallet first");
     if (!tokenA || !tokenB || !amountA || !amountB) return alert("Please fill all fields");
+    if (!(window as any).ethereum) return alert("No wallet provider found in window.ethereum");
+    if (!userAddress) return alert("User address missing");
 
     setIsAddingLiquidity(true);
     try {
       const parsedAmountA = parseEther(amountA);
       const parsedAmountB = parseEther(amountB);
+      const checksummedUser = getAddress(userAddress);
+
+      const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
+        const checksummedTo = getAddress(toAddress);
+        const txParams: any = {
+          from: checksummedUser,
+          to: checksummedTo,
+          data: dataHex,
+          gas: toHex(1000000), // Explicit gas limit for HashPack
+        };
+        if (valueHex) txParams.value = valueHex;
+
+        const txHash = await (window as any).ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [txParams]
+        });
+        
+        return txHash;
+      };
 
       // 1. Approve token A
-      const tokenAContract = {
-        address: tokenA as `0x${string}`,
-        abi: [
-          {
-            name: "approve",
-            type: "function",
-            stateMutability: "nonpayable",
-            inputs: [
-              { name: "spender", type: "address" },
-              { name: "amount", type: "uint256" }
-            ],
-            outputs: [{ type: "bool" }]
-          }
-        ]
-      } as const;
-
       console.log("Approving Token A...");
-      await writeContractAsync({
-        address: tokenA as `0x${string}`,
-        abi: tokenAContract.abi,
+      const approveDataA = encodeFunctionData({
+        abi: [{ name: "approve", type: "function", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }] }],
         functionName: "approve",
-        args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountA]
+        args: [getAddress(addresses.TradeEasyRouter as `0x${string}`), parsedAmountA]
       });
+      await sendRawTransaction(tokenA, approveDataA);
 
       // 2. Approve token B
-      const tokenBContract = {
-        address: tokenB as `0x${string}`,
-        abi: [
-          {
-            name: "approve",
-            type: "function",
-            stateMutability: "nonpayable",
-            inputs: [
-              { name: "spender", type: "address" },
-              { name: "amount", type: "uint256" }
-            ],
-            outputs: [{ type: "bool" }]
-          }
-        ]
-      } as const;
-
       console.log("Approving Token B...");
-      await writeContractAsync({
-        address: tokenB as `0x${string}`,
-        abi: tokenBContract.abi,
+      const approveDataB = encodeFunctionData({
+        abi: [{ name: "approve", type: "function", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }] }],
         functionName: "approve",
-        args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountB]
+        args: [getAddress(addresses.TradeEasyRouter as `0x${string}`), parsedAmountB]
       });
+      await sendRawTransaction(tokenB, approveDataB);
 
       // 3. Add Liquidity
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 600); // 10 mins
       console.log("Adding liquidity to pool...");
-      const tx = await writeContractAsync({
-        address: addresses.TradeEasyRouter as `0x${string}`,
+      
+      const checksummedRouter = getAddress(addresses.TradeEasyRouter as `0x${string}`);
+      const addLiquidityData = encodeFunctionData({
         abi: TradeEasyRouterAbi,
         functionName: "addLiquidity",
         args: [
-          tokenA,
-          tokenB,
+          getAddress(tokenA),
+          getAddress(tokenB),
           parsedAmountA,
           parsedAmountB,
           0n, // slippage parameters set to 0 for demo simplicity
           0n,
-          userAddress,
+          checksummedUser,
           deadline
         ]
       });
+
+      const tx = await sendRawTransaction(checksummedRouter, addLiquidityData);
 
       alert(`Liquidity added successfully! Hash: ${tx}`);
       setAmountA("");
@@ -438,7 +430,6 @@ export default function Home() {
       setIsAddingLiquidity(false);
     }
   };
-
 
   // Check allowance for Token A
   const { data: tokenAAllowance, refetch: refetchAllowance } = useReadContract({
@@ -473,7 +464,7 @@ export default function Home() {
           from: checksummedUser,
           to: checksummedTo,
           data: dataHex,
-          gas: toHex(2000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
+          gas: toHex(1000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
         };
         if (valueHex) txParams.value = valueHex;
 
