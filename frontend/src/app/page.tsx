@@ -459,7 +459,7 @@ export default function Home() {
     e.preventDefault();
     if (!isConnected) return showToast("Please connect your wallet");
     if (!tokenA || !tokenB || !swapAmountIn) return showToast("Please fill all fields");
-    if (!walletClient && !(window as any).ethereum) return showToast("No wallet client found");
+    if (!(window as any).ethereum) return showToast("No wallet provider found in window.ethereum");
     if (!userAddress) return showToast("User address missing");
 
     setIsSwapping(true);
@@ -473,21 +473,16 @@ export default function Home() {
           from: checksummedUser,
           to: checksummedTo,
           data: dataHex,
+          gas: toHex(2000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
         };
         if (valueHex) txParams.value = valueHex;
 
-        let txHash;
-        if (walletClient) {
-          txHash = await walletClient.request({
-            method: 'eth_sendTransaction',
-            params: [txParams]
-          });
-        } else {
-          txHash = await (window as any).ethereum.request({
-            method: 'eth_sendTransaction',
-            params: [txParams]
-          });
-        }
+        // Bypass viem completely and use the window.ethereum provider directly
+        const txHash = await (window as any).ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [txParams]
+        });
+        
         return txHash;
       };
 
@@ -509,11 +504,11 @@ export default function Home() {
         const tA = tokenA === "HBAR" ? WHBAR_ADDRESS : getAddress(tokenA);
         const tB = tokenB === "HBAR" ? WHBAR_ADDRESS : getAddress(tokenB);
         
-        const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
         const path = [tA, tB];
         const checksummedRouter = getAddress(addresses.TradeEasyRouter as `0x${string}`);
 
-        console.log("Executing swap with raw RPC routing...");
+        console.log("Executing swap with raw RPC routing via window.ethereum...");
         
         let tx;
         if (tokenA === "HBAR") {
