@@ -18,5 +18,8 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: 2000000000000 // 2000 Gwei
     }
+  },
+  sourcify: {
+    enabled: true
   }
 };

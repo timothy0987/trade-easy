@@ -1,0 +1,70 @@
+require("dotenv").config();
+const { 
+    Client, 
+    PrivateKey, 
+    TokenCreateTransaction, 
+    TokenType, 
+    TokenSupplyType,
+    AccountId
+} = require("@hashgraph/sdk");
+const fs = require("fs");
+const path = require("path");
+
+async function main() {
+    console.log("Starting HTS USDC deployment using Hedera SDK...");
+
+    // Setup Hedera Client
+    const myAccountId = "0.0.8596085";
+    const privateKeyHex = process.env.PRIVATE_KEY.replace("0x", "");
+    const privateKey = PrivateKey.fromStringECDSA(privateKeyHex);
+    
+    const client = Client.forTestnet();
+    client.setOperator(myAccountId, privateKey);
+
+    console.log(`Deploying HTS Token with operator Account ID: ${myAccountId}`);
+
+    // Create the token
+    const transaction = new TokenCreateTransaction()
+        .setTokenName("USD Coin")
+        .setTokenSymbol("USDC")
+        .setTokenType(TokenType.FungibleCommon)
+        .setSupplyType(TokenSupplyType.Infinite)
+        // 100,000,000 USDC with 6 decimals -> 100,000,000,000,000 (10^14)
+        .setInitialSupply(100000000000000)
+        .setDecimals(6)
+        .setTreasuryAccountId(myAccountId)
+        .setSupplyKey(privateKey) // Allows minting later if needed
+        .setAdminKey(privateKey)  // Allows updating token details later
+        .freezeWith(client);
+
+    console.log("Submitting TokenCreateTransaction to Hedera TestNet...");
+    const signTx = await transaction.sign(privateKey);
+    const txResponse = await signTx.execute(client);
+    const receipt = await txResponse.getReceipt(client);
+    const tokenId = receipt.tokenId;
+
+    console.log(`HTS USDC Token created successfully! Token ID: ${tokenId.toString()}`);
+    
+    // Calculate EVM address from Token ID
+    const tokenIdHex = tokenId.num.toString(16).padStart(40, '0');
+    const evmAddress = "0x" + tokenIdHex;
+    console.log(`HTS USDC EVM Address: ${evmAddress}`);
+
+    // Update addresses.json
+    const frontendPath = path.join(__dirname, "../../frontend/src/contracts/addresses.json");
+    let addresses = {};
+    if (fs.existsSync(frontendPath)) {
+        addresses = JSON.parse(fs.readFileSync(frontendPath, "utf8"));
+    }
+    
+    addresses.USDC = evmAddress;
+    fs.writeFileSync(frontendPath, JSON.stringify(addresses, null, 2));
+    console.log("Frontend addresses.json updated with new HTS USDC address!");
+    
+    process.exit(0);
+}
+
+main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+});
