@@ -11,7 +11,7 @@ import {
   usePublicClient,
   useWalletClient 
 } from "wagmi";
-import { parseEther, formatEther, encodeFunctionData, toHex } from "viem";
+import { parseEther, formatEther, encodeFunctionData, toHex, getAddress } from "viem";
 import { 
   Coins, 
   ArrowLeftRight, 
@@ -460,15 +460,18 @@ export default function Home() {
     if (!isConnected) return showToast("Please connect your wallet");
     if (!tokenA || !tokenB || !swapAmountIn) return showToast("Please fill all fields");
     if (!walletClient && !(window as any).ethereum) return showToast("No wallet client found");
+    if (!userAddress) return showToast("User address missing");
 
     setIsSwapping(true);
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
+      const checksummedUser = getAddress(userAddress);
 
       const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
+        const checksummedTo = getAddress(toAddress);
         const txParams: any = {
-          from: userAddress,
-          to: toAddress,
+          from: checksummedUser,
+          to: checksummedTo,
           data: dataHex,
         };
         if (valueHex) txParams.value = valueHex;
@@ -494,7 +497,7 @@ export default function Home() {
         const approveData = encodeFunctionData({
           abi: [{ name: "approve", type: "function", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }] }],
           functionName: "approve",
-          args: [addresses.TradeEasyRouter as `0x${string}`, parsedAmountIn]
+          args: [getAddress(addresses.TradeEasyRouter as `0x${string}`), parsedAmountIn]
         });
 
         await sendRawTransaction(tokenA, approveData);
@@ -502,12 +505,13 @@ export default function Home() {
         await refetchAllowance();
         showToast("Approval successful. You can now execute the swap.");
       } else {
-        const WHBAR_ADDRESS = "0x000000000000000000000000000000000000016a";
-        const tA = tokenA === "HBAR" ? WHBAR_ADDRESS : tokenA;
-        const tB = tokenB === "HBAR" ? WHBAR_ADDRESS : tokenB;
+        const WHBAR_ADDRESS = getAddress("0x000000000000000000000000000000000000016a");
+        const tA = tokenA === "HBAR" ? WHBAR_ADDRESS : getAddress(tokenA);
+        const tB = tokenB === "HBAR" ? WHBAR_ADDRESS : getAddress(tokenB);
         
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
         const path = [tA, tB];
+        const checksummedRouter = getAddress(addresses.TradeEasyRouter as `0x${string}`);
 
         console.log("Executing swap with raw RPC routing...");
         
@@ -516,23 +520,23 @@ export default function Home() {
           const swapData = encodeFunctionData({
             abi: TradeEasyRouterAbi,
             functionName: "swapExactETHForTokens",
-            args: [0n, path, userAddress, deadline]
+            args: [0n, path, checksummedUser, deadline]
           });
-          tx = await sendRawTransaction(addresses.TradeEasyRouter, swapData, toHex(parsedAmountIn));
+          tx = await sendRawTransaction(checksummedRouter, swapData, toHex(parsedAmountIn));
         } else if (tokenB === "HBAR") {
           const swapData = encodeFunctionData({
             abi: TradeEasyRouterAbi,
             functionName: "swapExactTokensForETH",
-            args: [parsedAmountIn, 0n, path, userAddress, deadline]
+            args: [parsedAmountIn, 0n, path, checksummedUser, deadline]
           });
-          tx = await sendRawTransaction(addresses.TradeEasyRouter, swapData);
+          tx = await sendRawTransaction(checksummedRouter, swapData);
         } else {
           const swapData = encodeFunctionData({
             abi: TradeEasyRouterAbi,
             functionName: "swapExactTokensForTokens",
-            args: [parsedAmountIn, 0n, path, userAddress, deadline]
+            args: [parsedAmountIn, 0n, path, checksummedUser, deadline]
           });
-          tx = await sendRawTransaction(addresses.TradeEasyRouter, swapData);
+          tx = await sendRawTransaction(checksummedRouter, swapData);
         }
 
         showToast(`Swap completed successfully! Hash: ${tx}`);
