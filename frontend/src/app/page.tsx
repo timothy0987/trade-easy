@@ -369,8 +369,13 @@ export default function Home() {
           to: checksummedTo,
           data: dataHex,
           gas: toHex(1000000), // Explicit gas limit for HashPack
+          type: 'legacy', // Enforce legacy transaction type for HashPack compatibility
         };
         if (valueHex) txParams.value = valueHex;
+
+        // Ensure modern gas fields are completely omitted
+        delete txParams.maxFeePerGas;
+        delete txParams.maxPriorityFeePerGas;
 
         const txHash = await walletClient.request({
           method: 'eth_sendTransaction',
@@ -465,8 +470,13 @@ export default function Home() {
           to: checksummedTo,
           data: dataHex,
           gas: toHex(1000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
+          type: 'legacy', // Enforce legacy transaction type for HashPack compatibility
         };
         if (valueHex) txParams.value = valueHex;
+
+        // Ensure modern gas fields are completely omitted
+        delete txParams.maxFeePerGas;
+        delete txParams.maxPriorityFeePerGas;
 
         // Bypass viem completely and use the isolated walletClient
         const txHash = await walletClient.request({
