@@ -34,30 +34,40 @@ async function main() {
 
   // 3. Deploy TradeEasyRouter
   console.log("Deploying TradeEasyRouter...");
+  const WHBAR_ADDRESS = "0xb1F616b8134F602c3Bb465fB5b5e6565cCAd37Ed";
   const TradeEasyRouter = await hre.ethers.getContractFactory("TradeEasyRouter");
-  const router = await TradeEasyRouter.deploy(factoryAddress, { gasPrice, gasLimit });
+  const router = await TradeEasyRouter.deploy(factoryAddress, WHBAR_ADDRESS, { gasPrice, gasLimit });
   await router.waitForDeployment();
   const routerAddress = await router.getAddress();
   console.log("TradeEasyRouter deployed to:", routerAddress);
 
   // 4. Save contract addresses to JSON
-  const addresses = {
-    network: "hederaTestnet",
-    chainId: 296,
-    TokenCreator: tokenCreatorAddress,
-    TradeEasyFactory: factoryAddress,
-    TradeEasyRouter: routerAddress,
-    deployer: deployer.address,
-    timestamp: new Date().toISOString()
-  };
-
   const outputDir = path.join(__dirname, "../../frontend/src/contracts");
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
   
+  const addressPath = path.join(outputDir, "addresses.json");
+  let addresses = {};
+  if (fs.existsSync(addressPath)) {
+    addresses = JSON.parse(fs.readFileSync(addressPath, "utf8"));
+  }
+
+  addresses = {
+    ...addresses,
+    network: "hederaTestnet",
+    chainId: 296,
+    TokenCreator: tokenCreatorAddress,
+    TradeEasyFactory: factoryAddress,
+    TradeEasyRouter: routerAddress,
+    WHBAR: WHBAR_ADDRESS,
+    MockHBAR: WHBAR_ADDRESS,
+    deployer: deployer.address,
+    timestamp: new Date().toISOString()
+  };
+
   fs.writeFileSync(
-    path.join(outputDir, "addresses.json"),
+    addressPath,
     JSON.stringify(addresses, null, 2)
   );
   console.log("Saved deployed addresses to:", path.join(outputDir, "addresses.json"));
