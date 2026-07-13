@@ -373,10 +373,8 @@ export default function Home() {
           gas: toHex(1000000), // Explicit gas limit for HashPack
         };
         
-        // Strict Value Handling: ONLY add if it is a non-zero value
-        if (valueHex && valueHex !== "0x0") {
-          txParams.value = valueHex;
-        }
+        // Strict Value Handling: Explicit zero value required by HashPack
+        txParams.value = valueHex ? valueHex : "0x0";
 
         const txHash = await walletClient.request({
           method: 'eth_sendTransaction',
@@ -475,10 +473,8 @@ export default function Home() {
           gas: toHex(1000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
         };
         
-        // Strict Value Handling: ONLY add if it is a non-zero value
-        if (valueHex && valueHex !== "0x0") {
-          txParams.value = valueHex;
-        }
+        // Strict Value Handling: Explicit zero value required by HashPack
+        txParams.value = valueHex ? valueHex : "0x0";
 
         // Bypass viem completely and use the isolated walletClient
         const txHash = await walletClient.request({
