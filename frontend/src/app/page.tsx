@@ -364,18 +364,19 @@ export default function Home() {
 
       const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
         const checksummedTo = getAddress(toAddress);
+        
+        // Construct a bare-bones payload for HashPack compatibility
         const txParams: any = {
           from: checksummedUser,
           to: checksummedTo,
           data: dataHex,
           gas: toHex(1000000), // Explicit gas limit for HashPack
-          type: 'legacy', // Enforce legacy transaction type for HashPack compatibility
         };
-        if (valueHex) txParams.value = valueHex;
-
-        // Ensure modern gas fields are completely omitted
-        delete txParams.maxFeePerGas;
-        delete txParams.maxPriorityFeePerGas;
+        
+        // Strict Value Handling: ONLY add if it is a non-zero value
+        if (valueHex && valueHex !== "0x0") {
+          txParams.value = valueHex;
+        }
 
         const txHash = await walletClient.request({
           method: 'eth_sendTransaction',
@@ -465,18 +466,19 @@ export default function Home() {
 
       const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
         const checksummedTo = getAddress(toAddress);
+        
+        // Construct a bare-bones payload for HashPack compatibility
         const txParams: any = {
           from: checksummedUser,
           to: checksummedTo,
           data: dataHex,
           gas: toHex(1000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
-          type: 'legacy', // Enforce legacy transaction type for HashPack compatibility
         };
-        if (valueHex) txParams.value = valueHex;
-
-        // Ensure modern gas fields are completely omitted
-        delete txParams.maxFeePerGas;
-        delete txParams.maxPriorityFeePerGas;
+        
+        // Strict Value Handling: ONLY add if it is a non-zero value
+        if (valueHex && valueHex !== "0x0") {
+          txParams.value = valueHex;
+        }
 
         // Bypass viem completely and use the isolated walletClient
         const txHash = await walletClient.request({
