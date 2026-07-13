@@ -353,7 +353,7 @@ export default function Home() {
     e.preventDefault();
     if (!isConnected) return alert("Please connect your wallet first");
     if (!tokenA || !tokenB || !amountA || !amountB) return alert("Please fill all fields");
-    if (!(window as any).ethereum) return alert("No wallet provider found in window.ethereum");
+    if (!walletClient) throw new Error('No wallet connected');
     if (!userAddress) return alert("User address missing");
 
     setIsAddingLiquidity(true);
@@ -372,7 +372,7 @@ export default function Home() {
         };
         if (valueHex) txParams.value = valueHex;
 
-        const txHash = await (window as any).ethereum.request({
+        const txHash = await walletClient.request({
           method: 'eth_sendTransaction',
           params: [txParams]
         });
@@ -450,7 +450,7 @@ export default function Home() {
     e.preventDefault();
     if (!isConnected) return showToast("Please connect your wallet");
     if (!tokenA || !tokenB || !swapAmountIn) return showToast("Please fill all fields");
-    if (!(window as any).ethereum) return showToast("No wallet provider found in window.ethereum");
+    if (!walletClient) throw new Error('No wallet connected');
     if (!userAddress) return showToast("User address missing");
 
     setIsSwapping(true);
@@ -468,8 +468,8 @@ export default function Home() {
         };
         if (valueHex) txParams.value = valueHex;
 
-        // Bypass viem completely and use the window.ethereum provider directly
-        const txHash = await (window as any).ethereum.request({
+        // Bypass viem completely and use the isolated walletClient
+        const txHash = await walletClient.request({
           method: 'eth_sendTransaction',
           params: [txParams]
         });
