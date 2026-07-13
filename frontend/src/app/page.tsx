@@ -499,7 +499,8 @@ export default function Home() {
         await refetchAllowance();
         showToast("Approval successful. You can now execute the swap.");
       } else {
-        const WHBAR_ADDRESS = getAddress("0x000000000000000000000000000000000000016a");
+        // Use the dynamically deployed WETH/WHBAR Mock address from addresses.json
+        const WHBAR_ADDRESS = getAddress((addresses as any).MockHBAR);
         const tA = tokenA === "HBAR" ? WHBAR_ADDRESS : getAddress(tokenA);
         const tB = tokenB === "HBAR" ? WHBAR_ADDRESS : getAddress(tokenB);
         
