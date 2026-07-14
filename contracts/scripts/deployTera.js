@@ -3,90 +3,75 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-    console.log("Starting Trade Easy deployment to Hedera TestNet...");
+  const [deployer] = await hre.ethers.getSigners();
+  console.log("Deploying TERA with account:", deployer.address);
 
-    const [deployer] = await hre.ethers.getSigners();
-    console.log("Deploying contracts with account:", deployer.address);
+  // Existing TokenCreator contract address
+  const tokenCreatorAddress = "0x17ac1C0fc9A33c43550A79ED1631c17e134212E3";
+  
+  // Attach to TokenCreator contract
+  const TokenCreator = await hre.ethers.getContractAt("TokenCreator", tokenCreatorAddress);
 
-    // 1. Deploy the $TERA Token (Using your existing HTS Creator or standard ERC20)
-    // Assuming a standard ERC20 mock for the testnet environment for seamless AMM integration
-    const Tera = await hre.ethers.getContractFactory("MockTERA"); // Ensure you have a standard ERC20 MockTERA compiled
-    const tera = await Tera.deploy("Trade Easy Token", "TERA", 18);
-    await tera.waitForDeployment();
-    const teraAddress = await tera.getAddress();
-    console.log("$TERA Token deployed to:", teraAddress);
+  const name = "Trade Easy Token";
+  const symbol = "TERA";
+  const decimals = 18;
+  const initialSupply = 1000000000000000000n; // 1 TERA base unit with 18 decimals
 
-    // 2. Deploy the TeraFaucet (The Treasury Vault)
-    const Faucet = await hre.ethers.getContractFactory("TeraFaucet");
-    const faucet = await Faucet.deploy(teraAddress);
-    await faucet.waitForDeployment();
-    const faucetAddress = await faucet.getAddress();
-    console.log("TeraFaucet Treasury deployed to:", faucetAddress);
+  console.log(`Creating token ${name} (${symbol})...`);
+  
+  // Call createToken, value of 40 HBAR (in wei)
+  const tx = await TokenCreator.createToken(
+    name,
+    symbol,
+    initialSupply,
+    decimals,
+    { value: hre.ethers.parseEther("40"), gasLimit: 15000000 }
+  );
 
-    // 3. Fund the Treasury
-    // Mint or transfer 5,000,000 $TERA (with 18 decimals) directly to the Faucet contract
-    const treasuryFundingAmount = hre.ethers.parseUnits("5000000", 18);
-    console.log("Funding the Faucet Treasury with 5,000,000 $TERA...");
-    
-    const fundTx = await tera.transfer(faucetAddress, treasuryFundingAmount);
-    await fundTx.wait();
-    console.log("Faucet Treasury successfully funded!");
+  console.log("Transaction sent. Waiting for receipt...");
+  const receipt = await tx.wait();
 
-    // 2.5 Deploy Mock USDC
-    console.log("Deploying Mock USDC token...");
-    const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
-    const usdc = await MockUSDC.deploy();
-    await usdc.waitForDeployment();
-    const usdcAddress = await usdc.getAddress();
-    console.log("Mock USDC deployed to:", usdcAddress);
-
-    // 4. Save Addresses for the Frontend
-    // We will preserve existing addresses so frontend components don't break
-    const frontendPath = path.join(__dirname, "../../frontend/src/contracts/addresses.json");
-    let addresses = {};
-    if (fs.existsSync(frontendPath)) {
-        addresses = JSON.parse(fs.readFileSync(frontendPath, "utf8"));
+  // Parse TokenCreated event to get the EVM token address
+  let teraAddress = null;
+  for (const log of receipt.logs) {
+    try {
+      const parsedLog = TokenCreator.interface.parseLog(log);
+      if (parsedLog && parsedLog.name === "TokenCreated") {
+        teraAddress = parsedLog.args.tokenAddress;
+        break;
+      }
+    } catch (e) {
+      // Ignore logs that don't match the interface
     }
-    
-    // 5. Initialize AMM liquidity for TERA/USDC
-    const routerAddress = addresses.TradeEasyRouter;
-    if (routerAddress) {
-        console.log("Adding 1:1 liquidity to TERA/USDC pool...");
-        const TradeEasyRouter = await hre.ethers.getContractAt("TradeEasyRouter", routerAddress);
-        
-        // 10,000 TERA and 10,000 USDC
-        const teraLpAmount = hre.ethers.parseUnits("10000", 18);
-        const usdcLpAmount = hre.ethers.parseUnits("10000", 6);
+  }
 
-        await (await tera.approve(routerAddress, teraLpAmount)).wait();
-        await (await usdc.approve(routerAddress, usdcLpAmount)).wait();
+  if (!teraAddress) {
+    throw new Error("TokenCreated event not found in transaction receipt.");
+  }
 
-        const deadline = Math.floor(Date.now() / 1000) + 600;
-        await (await TradeEasyRouter.addLiquidity(
-            teraAddress,
-            usdcAddress,
-            teraLpAmount,
-            usdcLpAmount,
-            0,
-            0,
-            deployer.address,
-            deadline,
-            { gasLimit: 5000000n }
-        )).wait();
-        console.log("TERA/USDC Liquidity added successfully!");
-    } else {
-        console.log("TradeEasyRouter not found. Skipping liquidity initialization.");
-    }
+  console.log(`TERA Token EVM Address: ${teraAddress}`);
 
-    addresses.TERA = teraAddress;
-    addresses.TeraFaucet = faucetAddress;
-    addresses.USDC = usdcAddress;
+  // Write to addresses.json
+  const outputDir = path.join(__dirname, "../../frontend/src/contracts");
+  const addressPath = path.join(outputDir, "addresses.json");
+  
+  let addresses = {};
+  if (fs.existsSync(addressPath)) {
+    addresses = JSON.parse(fs.readFileSync(addressPath, "utf8"));
+  }
 
-    fs.writeFileSync(frontendPath, JSON.stringify(addresses, null, 2));
-    console.log("Frontend addresses updated!");
+  addresses = {
+    ...addresses,
+    TERA: teraAddress
+  };
+
+  fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 2));
+  console.log(`Saved TERA address to addresses.json`);
 }
 
-main().catch((error) => {
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
     console.error(error);
-    process.exitCode = 1;
-});
+    process.exit(1);
+  });

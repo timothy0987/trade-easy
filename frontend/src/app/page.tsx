@@ -29,8 +29,7 @@ import {
 
 import addresses from "@/contracts/addresses.json";
 import TokenCreatorAbi from "@/contracts/TokenCreator.json";
-import TradeEasyRouterAbi from "@/contracts/TradeEasyRouter.json";
-import TradeEasyFactoryAbi from "@/contracts/TradeEasyFactory.json";
+import TokenVendorAbi from "@/contracts/TokenVendor.json";
 import TeraFaucetAbi from "@/contracts/TeraFaucet.json";
 
 const HTS_PRECOMPILE = "0x0000000000000000000000000000000000000167";
@@ -152,17 +151,13 @@ export default function Home() {
   // --- SWAP STATE ---
   const [tokenA, setTokenA] = useState("");
   const [tokenB, setTokenB] = useState("");
-  const [amountA, setAmountA] = useState("");
-  const [amountB, setAmountB] = useState("");
   const [swapAmountIn, setSwapAmountIn] = useState("");
-  const [slippage, setSlippage] = useState("0.5");
   const [isSwapping, setIsSwapping] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), 5000);
   };
-  const [isAddingLiquidity, setIsAddingLiquidity] = useState(false);
 
   // --- AI AGENT STATE ---
   const [agentInput, setAgentInput] = useState("");
@@ -348,111 +343,6 @@ export default function Home() {
     }
   };
 
-  // --- ADD LIQUIDITY SUBMIT ---
-  const handleAddLiquidity = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isConnected) return alert("Please connect your wallet first");
-    if (!tokenA || !tokenB || !amountA || !amountB) return alert("Please fill all fields");
-    if (!walletClient) throw new Error('No wallet connected');
-    if (!userAddress) return alert("User address missing");
-
-    setIsAddingLiquidity(true);
-    try {
-      const parsedAmountA = parseEther(amountA);
-      const parsedAmountB = parseEther(amountB);
-      const checksummedUser = getAddress(userAddress);
-
-      const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
-        const checksummedTo = getAddress(toAddress);
-        
-        if (!publicClient) throw new Error("Public client missing");
-        const currentGasPrice = await publicClient.getGasPrice();
-
-        // Construct a bare-bones payload for HashPack compatibility
-        const txParams: any = {
-          from: checksummedUser,
-          to: checksummedTo,
-          data: dataHex,
-          gas: toHex(1000000n), // Explicit gas limit for HashPack
-          gasPrice: toHex(currentGasPrice), // Explicit legacy gas price
-        };
-        
-        // Strict Value Handling: Explicit zero value required by HashPack
-        txParams.value = valueHex ? valueHex : "0x0";
-
-        const txHash = await walletClient.request({
-          method: 'eth_sendTransaction',
-          params: [txParams]
-        });
-        
-        return txHash;
-      };
-
-      // 1. Approve token A
-      console.log("Approving Token A...");
-      const approveDataA = encodeFunctionData({
-        abi: [{ name: "approve", type: "function", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }] }],
-        functionName: "approve",
-        args: [getAddress(addresses.TradeEasyRouter as `0x${string}`), parsedAmountA]
-      });
-      await sendRawTransaction(tokenA, approveDataA);
-
-      // 2. Approve token B
-      console.log("Approving Token B...");
-      const approveDataB = encodeFunctionData({
-        abi: [{ name: "approve", type: "function", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }] }],
-        functionName: "approve",
-        args: [getAddress(addresses.TradeEasyRouter as `0x${string}`), parsedAmountB]
-      });
-      await sendRawTransaction(tokenB, approveDataB);
-
-      // 3. Add Liquidity
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 600); // 10 mins
-      console.log("Adding liquidity to pool...");
-      
-      const checksummedRouter = getAddress(addresses.TradeEasyRouter as `0x${string}`);
-      const addLiquidityData = encodeFunctionData({
-        abi: TradeEasyRouterAbi,
-        functionName: "addLiquidity",
-        args: [
-          getAddress(tokenA),
-          getAddress(tokenB),
-          parsedAmountA,
-          parsedAmountB,
-          0n, // slippage parameters set to 0 for demo simplicity
-          0n,
-          checksummedUser,
-          deadline
-        ]
-      });
-
-      const tx = await sendRawTransaction(checksummedRouter, addLiquidityData);
-
-      alert(`Liquidity added successfully! Hash: ${tx}`);
-      setAmountA("");
-      setAmountB("");
-    } catch (err: any) {
-      console.error(err);
-      alert(`Failed to add liquidity: ${err.message || err}`);
-    } finally {
-      setIsAddingLiquidity(false);
-    }
-  };
-
-  // Check allowance for Token A
-  const { data: tokenAAllowance, refetch: refetchAllowance } = useReadContract({
-    address: tokenA && tokenA !== "HBAR" ? tokenA as `0x${string}` : undefined,
-    abi: [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] }],
-    functionName: "allowance",
-    args: userAddress && addresses.TradeEasyRouter ? [userAddress, addresses.TradeEasyRouter as `0x${string}`] : undefined,
-    query: {
-      enabled: !!userAddress && !!tokenA && tokenA !== "HBAR",
-    }
-  });
-
-  const parsedSwapAmountIn = swapAmountIn ? parseEther(swapAmountIn) : 0n;
-  const needsApproval = tokenA !== "HBAR" && tokenA !== "" && tokenAAllowance !== undefined && (tokenAAllowance as bigint) < parsedSwapAmountIn;
-
   // --- SWAP SUBMIT ---
   const handleSwap = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -461,91 +351,41 @@ export default function Home() {
     if (!walletClient) throw new Error('No wallet connected');
     if (!userAddress) return showToast("User address missing");
 
+    if (tokenA !== "HBAR" || tokenB !== (addresses as any).TERA) {
+      return showToast("Token Vendor only supports swapping HBAR for TERA natively.");
+    }
+
     setIsSwapping(true);
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
       const checksummedUser = getAddress(userAddress);
+      const vendorAddress = getAddress((addresses as any).TokenVendor);
 
-      const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
-        const checksummedTo = getAddress(toAddress);
-        
-        if (!publicClient) throw new Error("Public client missing");
-        const currentGasPrice = await publicClient.getGasPrice();
-        
-        // Dynamic Value Calculation
-        const txValue = tokenA === 'HBAR' ? toHex(parseEther(swapAmountIn.toString())) : '0x0';
+      if (!publicClient) throw new Error("Public client missing");
+      const currentGasPrice = await publicClient.getGasPrice();
+      
+      const buyTokensData = encodeFunctionData({
+        abi: TokenVendorAbi,
+        functionName: "buyTokens",
+        args: []
+      });
 
-        // Construct a bare-bones payload for HashPack compatibility
-        const txParams: any = {
-          from: checksummedUser,
-          to: getAddress(addresses.TradeEasyRouter as `0x${string}`),
-          data: dataHex,
-          gas: toHex(1000000n), // Hardcoded gas limit to prevent HashPack gas estimation failures
-          gasPrice: toHex(currentGasPrice), // Explicit legacy gas price
-          value: txValue
-        };
-
-        // Bypass viem completely and use the isolated walletClient
-        const txHash = await walletClient.request({
-          method: 'eth_sendTransaction',
-          params: [txParams]
-        });
-        
-        return txHash;
+      const txParams: any = {
+        from: checksummedUser,
+        to: vendorAddress,
+        data: buyTokensData,
+        gas: toHex(1000000n),
+        gasPrice: toHex(currentGasPrice),
+        value: toHex(parsedAmountIn)
       };
 
-      if (needsApproval) {
-        console.log("Approving Token In...");
-        
-        const approveData = encodeFunctionData({
-          abi: [{ name: "approve", type: "function", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }] }],
-          functionName: "approve",
-          args: [getAddress(addresses.TradeEasyRouter as `0x${string}`), parsedAmountIn]
-        });
+      const txHash = await walletClient.request({
+        method: 'eth_sendTransaction',
+        params: [txParams]
+      });
 
-        await sendRawTransaction(tokenA, approveData);
-        
-        await refetchAllowance();
-        showToast("Approval successful. You can now execute the swap.");
-      } else {
-        // Use the dynamically deployed WETH/WHBAR Mock address from addresses.json
-        const WHBAR_ADDRESS = getAddress((addresses as any).MockHBAR);
-        const tA = tokenA === "HBAR" ? WHBAR_ADDRESS : getAddress(tokenA);
-        const tB = tokenB === "HBAR" ? WHBAR_ADDRESS : getAddress(tokenB);
-        
-        const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
-        const path = [tA, tB];
-        const checksummedRouter = getAddress(addresses.TradeEasyRouter as `0x${string}`);
-
-        console.log("Executing swap with raw RPC routing via window.ethereum...");
-        
-        let tx;
-        if (tokenA === "HBAR") {
-          const swapData = encodeFunctionData({
-            abi: TradeEasyRouterAbi,
-            functionName: "swapExactETHForTokens",
-            args: [0n, path, checksummedUser, deadline]
-          });
-          tx = await sendRawTransaction(checksummedRouter, swapData, toHex(parsedAmountIn));
-        } else if (tokenB === "HBAR") {
-          const swapData = encodeFunctionData({
-            abi: TradeEasyRouterAbi,
-            functionName: "swapExactTokensForETH",
-            args: [parsedAmountIn, 0n, path, checksummedUser, deadline]
-          });
-          tx = await sendRawTransaction(checksummedRouter, swapData);
-        } else {
-          const swapData = encodeFunctionData({
-            abi: TradeEasyRouterAbi,
-            functionName: "swapExactTokensForTokens",
-            args: [parsedAmountIn, 0n, path, checksummedUser, deadline]
-          });
-          tx = await sendRawTransaction(checksummedRouter, swapData);
-        }
-
-        showToast(`Swap completed successfully! Hash: ${tx}`);
-        setSwapAmountIn("");
-      }
+      showToast(`Swap completed successfully! Hash: ${txHash}`);
+      setSwapAmountIn("");
     } catch (err: any) {
       console.error(err);
       if (err.message?.includes("User rejected") || err.message?.includes("User denied") || err.code === 4001 || err.message?.includes("4001")) {
@@ -813,15 +653,14 @@ export default function Home() {
 
         {/* SWAP TAB */}
         {activeTab === "swap" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
-            {/* Left Card: Swap */}
-            <div className="glass-card-teal p-8 flex flex-col gap-6">
+          <div className="flex justify-center animate-fadeIn">
+            <div className="glass-card-teal p-8 flex flex-col gap-6 max-w-md w-full">
               <div>
                 <h2 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
                   <ArrowLeftRight className="w-6 h-6 text-neon-teal" />
                   Instant Swap
                 </h2>
-                <p className="text-gray-400 text-sm mt-1">Swap between assets seamlessly via AMM pools.</p>
+                <p className="text-gray-400 text-sm mt-1">Swap between assets seamlessly via Token Vendor.</p>
               </div>
 
               <form onSubmit={handleSwap} className="flex flex-col gap-4">
@@ -844,7 +683,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount In</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount In (HBAR)</label>
                   <input
                     type="number"
                     value={swapAmountIn}
@@ -862,68 +701,10 @@ export default function Home() {
                   {isSwapping ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      {needsApproval ? "Approving..." : "Swapping..."}
+                      Swapping...
                     </>
-                  ) : needsApproval ? (
-                    "Approve Token"
                   ) : (
                     "Execute Swap"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            {/* Right Card: Liquidity Provision */}
-            <div className="glass-card p-8 flex flex-col gap-6">
-              <div>
-                <h3 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-neon-teal" />
-                  Add Liquidity Pool
-                </h3>
-                <p className="text-gray-400 text-sm mt-1">Provide liquidity to earn pool transaction fees.</p>
-              </div>
-
-              <form onSubmit={handleAddLiquidity} className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount A</label>
-                    <input
-                      type="number"
-                      value={amountA}
-                      onChange={(e) => setAmountA(e.target.value)}
-                      placeholder="1000"
-                      className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-teal/50 focus:outline-none text-white text-sm"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount B</label>
-                    <input
-                      type="number"
-                      value={amountB}
-                      onChange={(e) => setAmountB(e.target.value)}
-                      placeholder="1000"
-                      className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-teal/50 focus:outline-none text-white text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-gray-500">
-                  Note: Adding liquidity automatically approves both tokens for the router contract before depositing them.
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isAddingLiquidity}
-                  className="w-full py-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                  {isAddingLiquidity ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Adding Liquidity...
-                    </>
-                  ) : (
-                    "Supply Liquidity"
                   )}
                 </button>
               </form>
@@ -1000,7 +781,10 @@ export default function Home() {
                   <TokenSelector 
                     label="Target Token (Context)" 
                     value={agentSelectedToken} 
-                    onChange={setAgentSelectedToken} 
+                    onChange={(val) => {
+                      setAgentSelectedToken(val);
+                      setAgentInput((prev) => prev ? prev + " " + val : val);
+                    }} 
                     placeholder="Select a token..." 
                   />
                 </div>

@@ -12,77 +12,57 @@ async function main() {
   
   // Use a buffer for gasPrice (1.5x recommended) or fallback to 3000 Gwei
   const gasPrice = feeData.gasPrice ? (feeData.gasPrice * 15n) / 10n : 3000000000000n;
-  const gasLimit = 3000000n;
+  const gasLimit = 8000000n;
 
-  console.log(`Using gasPrice: ${gasPrice.toString()} and gasLimit: ${gasLimit.toString()}`);
-
-  // 1. Deploy TokenCreator
-  console.log("Deploying TokenCreator...");
-  const TokenCreator = await hre.ethers.getContractFactory("TokenCreator");
-  const tokenCreator = await TokenCreator.deploy({ gasPrice, gasLimit });
-  await tokenCreator.waitForDeployment();
-  const tokenCreatorAddress = await tokenCreator.getAddress();
-  console.log("TokenCreator deployed to:", tokenCreatorAddress);
-
-  // 2. Deploy TradeEasyFactory
-  console.log("Deploying TradeEasyFactory...");
-  const TradeEasyFactory = await hre.ethers.getContractFactory("TradeEasyFactory");
-  const factory = await TradeEasyFactory.deploy({ gasPrice, gasLimit });
-  await factory.waitForDeployment();
-  const factoryAddress = await factory.getAddress();
-  console.log("TradeEasyFactory deployed to:", factoryAddress);
-
-  // 3. Deploy TradeEasyRouter
-  console.log("Deploying TradeEasyRouter...");
-  const WHBAR_ADDRESS = "0xb1F616b8134F602c3Bb465fB5b5e6565cCAd37Ed";
-  const TradeEasyRouter = await hre.ethers.getContractFactory("TradeEasyRouter");
-  const router = await TradeEasyRouter.deploy(factoryAddress, WHBAR_ADDRESS, { gasPrice, gasLimit });
-  await router.waitForDeployment();
-  const routerAddress = await router.getAddress();
-  console.log("TradeEasyRouter deployed to:", routerAddress);
-
-  // 4. Save contract addresses to JSON
   const outputDir = path.join(__dirname, "../../frontend/src/contracts");
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-  
   const addressPath = path.join(outputDir, "addresses.json");
+  
   let addresses = {};
   if (fs.existsSync(addressPath)) {
     addresses = JSON.parse(fs.readFileSync(addressPath, "utf8"));
   }
 
+  const teraAddress = addresses.TERA;
+  if (!teraAddress) {
+    throw new Error("TERA address not found in addresses.json. Run deployTera.js first.");
+  }
+
+  // 1. Deploy TokenVendor
+  console.log("Deploying TokenVendor...");
+  const TokenVendor = await hre.ethers.getContractFactory("TokenVendor");
+  const vendor = await TokenVendor.deploy(teraAddress, { gasPrice, gasLimit });
+  await vendor.waitForDeployment();
+  const vendorAddress = await vendor.getAddress();
+  console.log("TokenVendor deployed to:", vendorAddress);
+
+  // 2. Fund TokenVendor with TERA
+  console.log("Funding TokenVendor with TERA...");
+  const fundAmount = 1000000000000000000n; // Transfer the whole 1 TERA initially minted
+  try {
+      const tokenCreatorAddress = "0x17ac1C0fc9A33c43550A79ED1631c17e134212E3";
+      const TokenCreator = await hre.ethers.getContractAt("TokenCreator", tokenCreatorAddress);
+      const tx = await TokenCreator.transferOut(teraAddress, vendorAddress, fundAmount, { gasPrice, gasLimit });
+      await tx.wait();
+      console.log(`Successfully funded TokenVendor with 1 TERA via TokenCreator`);
+  } catch (e) {
+      console.log("Failed to fund vendor via TokenCreator. Error:", e.message);
+  }
+
+  // 3. Save contract addresses to JSON
   addresses = {
     ...addresses,
-    network: "hederaTestnet",
-    chainId: 296,
-    TokenCreator: tokenCreatorAddress,
-    TradeEasyFactory: factoryAddress,
-    TradeEasyRouter: routerAddress,
-    WHBAR: WHBAR_ADDRESS,
-    MockHBAR: WHBAR_ADDRESS,
+    TokenVendor: vendorAddress,
     deployer: deployer.address,
     timestamp: new Date().toISOString()
   };
 
-  fs.writeFileSync(
-    addressPath,
-    JSON.stringify(addresses, null, 2)
-  );
-  console.log("Saved deployed addresses to:", path.join(outputDir, "addresses.json"));
+  fs.writeFileSync(addressPath, JSON.stringify(addresses, null, 2));
+  console.log("Saved deployed addresses to:", addressPath);
 
   // Also save contracts ABI so frontend can import them
-  const tokenCreatorArtifact = hre.artifacts.readArtifactSync("TokenCreator");
-  const factoryArtifact = hre.artifacts.readArtifactSync("TradeEasyFactory");
-  const routerArtifact = hre.artifacts.readArtifactSync("TradeEasyRouter");
-  const pairArtifact = hre.artifacts.readArtifactSync("TradeEasyPair");
-
-  fs.writeFileSync(path.join(outputDir, "TokenCreator.json"), JSON.stringify(tokenCreatorArtifact.abi, null, 2));
-  fs.writeFileSync(path.join(outputDir, "TradeEasyFactory.json"), JSON.stringify(factoryArtifact.abi, null, 2));
-  fs.writeFileSync(path.join(outputDir, "TradeEasyRouter.json"), JSON.stringify(routerArtifact.abi, null, 2));
-  fs.writeFileSync(path.join(outputDir, "TradeEasyPair.json"), JSON.stringify(pairArtifact.abi, null, 2));
-  console.log("ABIs successfully written to frontend src/contracts folder.");
+  const vendorArtifact = hre.artifacts.readArtifactSync("TokenVendor");
+  fs.writeFileSync(path.join(outputDir, "TokenVendor.json"), JSON.stringify(vendorArtifact.abi, null, 2));
+  console.log("ABI successfully written to frontend src/contracts folder.");
 }
 
 main()
