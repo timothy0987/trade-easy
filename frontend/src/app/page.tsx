@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import { 
@@ -494,9 +495,15 @@ export default function Home() {
 
       {/* Levitating Nav Bar */}
       <nav className="levitating-nav">
-        <div className="flex items-center gap-2 mr-4">
-          <Sparkles className="w-5 h-5 text-neon-purple text-glow-purple" />
-          <span className="font-bold tracking-tight text-white text-lg">TradeEasy</span>
+        <div className="flex items-center mr-4">
+          <Image 
+            src="/Artboard_15_4x-100_1_-removebg-preview.png" 
+            alt="TradeEasy Logo" 
+            width={120} 
+            height={40} 
+            className="object-contain"
+            priority
+          />
         </div>
         <div className="flex gap-1 border-r border-white/10 pr-4 mr-2">
           <button
