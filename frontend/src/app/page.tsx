@@ -471,7 +471,7 @@ export default function Home() {
         // Construct a bare-bones payload for HashPack compatibility
         const txParams: any = {
           from: checksummedUser,
-          to: checksummedTo,
+          to: getAddress(addresses.TradeEasyRouter as `0x${string}`),
           data: dataHex,
           gas: toHex(1000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
           value: txValue
