@@ -358,7 +358,14 @@ export default function Home() {
     setIsSwapping(true);
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
-      const checksummedUser = getAddress(userAddress);
+      
+      let evmFromAddress = userAddress;
+      if (userAddress && userAddress.includes('0.0.')) {
+        const accNum = parseInt(userAddress.split('.')[2], 10);
+        evmFromAddress = '0x' + accNum.toString(16).padStart(40, '0');
+      }
+      
+      const checksummedUser = getAddress(evmFromAddress);
       const vendorAddress = getAddress((addresses as any).TokenVendor);
 
       if (!publicClient) throw new Error("Public client missing");
