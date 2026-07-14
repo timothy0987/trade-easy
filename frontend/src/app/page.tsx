@@ -365,12 +365,16 @@ export default function Home() {
       const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
         const checksummedTo = getAddress(toAddress);
         
+        if (!publicClient) throw new Error("Public client missing");
+        const currentGasPrice = await publicClient.getGasPrice();
+
         // Construct a bare-bones payload for HashPack compatibility
         const txParams: any = {
           from: checksummedUser,
           to: checksummedTo,
           data: dataHex,
-          gas: toHex(1000000), // Explicit gas limit for HashPack
+          gas: toHex(1000000n), // Explicit gas limit for HashPack
+          gasPrice: toHex(currentGasPrice), // Explicit legacy gas price
         };
         
         // Strict Value Handling: Explicit zero value required by HashPack
@@ -465,6 +469,9 @@ export default function Home() {
       const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
         const checksummedTo = getAddress(toAddress);
         
+        if (!publicClient) throw new Error("Public client missing");
+        const currentGasPrice = await publicClient.getGasPrice();
+        
         // Dynamic Value Calculation
         const txValue = tokenA === 'HBAR' ? toHex(parseEther(swapAmountIn.toString())) : '0x0';
 
@@ -473,7 +480,8 @@ export default function Home() {
           from: checksummedUser,
           to: getAddress(addresses.TradeEasyRouter as `0x${string}`),
           data: dataHex,
-          gas: toHex(1000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
+          gas: toHex(1000000n), // Hardcoded gas limit to prevent HashPack gas estimation failures
+          gasPrice: toHex(currentGasPrice), // Explicit legacy gas price
           value: txValue
         };
 
