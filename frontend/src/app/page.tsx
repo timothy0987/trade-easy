@@ -499,9 +499,9 @@ export default function Home() {
           <Image 
             src="/Artboard_15_4x-100_1_-removebg-preview.png" 
             alt="TradeEasy Logo" 
-            width={120} 
-            height={40} 
-            className="object-contain"
+            width={400} 
+            height={100} 
+            className="h-10 w-auto object-contain"
             priority
           />
         </div>
