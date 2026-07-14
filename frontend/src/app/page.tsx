@@ -465,16 +465,17 @@ export default function Home() {
       const sendRawTransaction = async (toAddress: string, dataHex: string, valueHex?: string) => {
         const checksummedTo = getAddress(toAddress);
         
+        // Dynamic Value Calculation
+        const txValue = tokenA === 'HBAR' ? toHex(parseEther(swapAmountIn.toString())) : '0x0';
+
         // Construct a bare-bones payload for HashPack compatibility
         const txParams: any = {
           from: checksummedUser,
           to: checksummedTo,
           data: dataHex,
           gas: toHex(1000000), // Hardcoded gas limit to prevent HashPack gas estimation failures
+          value: txValue
         };
-        
-        // Strict Value Handling: Explicit zero value required by HashPack
-        txParams.value = valueHex ? valueHex : "0x0";
 
         // Bypass viem completely and use the isolated walletClient
         const txHash = await walletClient.request({
