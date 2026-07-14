@@ -139,6 +139,32 @@ export default function Home() {
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
 
+  // --- TICKER STATE ---
+  const [hbarUsdPrice, setHbarUsdPrice] = useState<number | null>(null);
+  const [pricePulse, setPricePulse] = useState(false);
+  const TERA_PER_HBAR = 100; // Exchange rate 100 TERA per 1 HBAR
+
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=hedera-hashgraph&vs_currencies=usd");
+        const data = await res.json();
+        const price = data["hedera-hashgraph"]?.usd;
+        if (price) {
+          setHbarUsdPrice(price);
+          setPricePulse(true);
+          setTimeout(() => setPricePulse(false), 1000);
+        }
+      } catch (err) {
+        console.error("Failed to fetch HBAR price:", err);
+      }
+    };
+
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // --- MINT STATE ---
   const [tokenName, setTokenName] = useState("");
   const [tokenSymbol, setTokenSymbol] = useState("");
@@ -525,6 +551,25 @@ export default function Home() {
             Profile
           </Link>
         </div>
+
+        {/* Live Price Ticker */}
+        <div className={`hidden md:flex items-center gap-3 border-r border-white/10 pr-4 mr-2 ${pricePulse ? 'animate-pulse' : 'transition-opacity duration-1000'}`}>
+          {hbarUsdPrice ? (
+            <>
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
+                <span className="text-gray-400">HBAR:</span> 
+                <span className="text-neon-teal">${hbarUsdPrice.toFixed(4)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
+                <span className="text-gray-400">TERA:</span> 
+                <span className="text-neon-purple">${(hbarUsdPrice / TERA_PER_HBAR).toFixed(4)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="text-xs font-mono text-gray-500 animate-pulse px-3 py-1.5">Fetching Live Prices...</div>
+          )}
+        </div>
+
         <CustomConnectButton />
       </nav>
 
