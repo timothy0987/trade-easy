@@ -10,8 +10,7 @@ import {
   useWriteContract, 
   useReadContract,
   usePublicClient,
-  useWalletClient,
-  useSendTransaction
+  useWalletClient
 } from "wagmi";
 import { parseEther, formatEther, encodeFunctionData, toHex, getAddress } from "viem";
 import { 
@@ -138,7 +137,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"mint" | "swap" | "agent" | "faucet">("mint");
   const { address: userAddress, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const { sendTransactionAsync } = useSendTransaction();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
 
@@ -346,8 +344,10 @@ export default function Home() {
     setMintingTx(true);
     try {
       if (!(addresses as any).TokenCreator) throw new Error('TokenCreator address is missing from addresses.json');
+      if (!walletClient) throw new Error('Wallet client not found');
 
-      const tx = await sendTransactionAsync({
+      const tx = await walletClient.sendTransaction({
+        account: userAddress as any,
         to: (addresses as any).TokenCreator,
         data: encodeFunctionData({ 
           abi: TokenCreatorAbi, 
@@ -387,8 +387,10 @@ export default function Home() {
       const parsedAmountIn = parseEther(swapAmountIn);
       
       if (!(addresses as any).TokenVendor) throw new Error('TokenVendor address is missing from addresses.json');
+      if (!walletClient) throw new Error('Wallet client not found');
       
-      const txHash = await sendTransactionAsync({
+      const txHash = await walletClient.sendTransaction({
+        account: userAddress as any,
         to: (addresses as any).TokenVendor, 
         data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyTokens' }),
         value: parseEther(swapAmountIn.toString()), 
