@@ -10,7 +10,8 @@ import {
   useWriteContract, 
   useReadContract,
   usePublicClient,
-  useWalletClient 
+  useWalletClient,
+  useSendTransaction
 } from "wagmi";
 import { parseEther, formatEther, encodeFunctionData, toHex, getAddress } from "viem";
 import { 
@@ -137,6 +138,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"mint" | "swap" | "agent" | "faucet">("mint");
   const { address: userAddress, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const { sendTransactionAsync } = useSendTransaction();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
 
@@ -344,31 +346,16 @@ export default function Home() {
     setMintingTx(true);
     try {
       if (!(addresses as any).TokenCreator) throw new Error('TokenCreator address is missing from addresses.json');
-      if (!walletClient) throw new Error('No wallet connected');
 
-      const mintData = encodeFunctionData({
-        abi: TokenCreatorAbi,
-        functionName: "createToken",
-        args: [
-          tokenName,
-          tokenSymbol,
-          BigInt(initialSupply),
-          parseInt(tokenDecimals)
-        ]
-      });
-
-      const sanitizedPayload = {
+      const tx = await sendTransactionAsync({
         to: (addresses as any).TokenCreator,
-        from: userAddress,
-        data: mintData,
-        value: toHex(BigInt(parseEther(creationFeeHbar))),
-        gas: toHex(BigInt(2000000)),
-        type: '0x0'
-      };
-
-      console.log('Pre-flight Payload:', sanitizedPayload);
-
-      const tx = await walletClient.request({ method: 'eth_sendTransaction', params: [sanitizedPayload] });
+        data: encodeFunctionData({ 
+          abi: TokenCreatorAbi, 
+          functionName: 'createToken', 
+          args: [tokenName, tokenSymbol, BigInt(initialSupply), parseInt(tokenDecimals)] 
+        }),
+        value: parseEther(creationFeeHbar.toString()), 
+      });
 
       alert(`HTS Token Creation transaction submitted! Hash: ${tx}`);
       setTokenName("");
@@ -376,7 +363,7 @@ export default function Home() {
       setInitialSupply("");
       setTimeout(() => refetchTokens(), 5000);
     } catch (err: any) {
-      console.error('RPC Execution Error:', err);
+      console.error('Transaction Failed:', err);
       alert(`HTS Token Creation failed: ${err.message || err}`);
     } finally {
       setMintingTx(false);
@@ -401,23 +388,16 @@ export default function Home() {
       
       if (!(addresses as any).TokenVendor) throw new Error('TokenVendor address is missing from addresses.json');
       
-      const sanitizedPayload = {
-        to: (addresses as any).TokenVendor,
-        from: userAddress,
-        data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyTokens', args: [] }),
-        value: toHex(BigInt(parseEther(swapAmountIn.toString()))),
-        gas: toHex(BigInt(2000000)),
-        type: '0x0'
-      };
-
-      console.log('Pre-flight Payload:', sanitizedPayload);
-
-      const txHash = await walletClient.request({ method: 'eth_sendTransaction', params: [sanitizedPayload] });
+      const txHash = await sendTransactionAsync({
+        to: (addresses as any).TokenVendor, 
+        data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyTokens' }),
+        value: parseEther(swapAmountIn.toString()), 
+      });
 
       showToast(`Swap completed successfully! Hash: ${txHash}`);
       setSwapAmountIn("");
     } catch (err: any) {
-      console.error('RPC Execution Error:', err);
+      console.error('Transaction Failed:', err);
       if (err.message?.includes("User rejected") || err.message?.includes("User denied") || err.code === 4001 || err.message?.includes("4001")) {
         showToast("Transaction rejected by user.");
       } else {
