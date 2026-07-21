@@ -357,15 +357,18 @@ export default function Home() {
         }
       }
 
-      const tx = await walletClient.sendTransaction({
-        account: userAddress as any,
-        to: (addresses as any).TokenCreator,
-        data: encodeFunctionData({ 
-          abi: TokenCreatorAbi, 
-          functionName: 'createToken', 
-          args: [tokenName, tokenSymbol, BigInt(initialSupply), parseInt(tokenDecimals)] 
-        }),
-        value: parseEther(creationFeeHbar.toString()), 
+      const tx = await walletClient.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: userAddress,
+          to: (addresses as any).TokenCreator,
+          data: encodeFunctionData({ 
+            abi: TokenCreatorAbi, 
+            functionName: 'createToken', 
+            args: [tokenName, tokenSymbol, BigInt(initialSupply), parseInt(tokenDecimals)] 
+          }),
+          value: toHex(parseEther(creationFeeHbar.toString())) 
+        }]
       });
 
       alert(`HTS Token Creation transaction submitted! Hash: ${tx}`);
@@ -409,11 +412,14 @@ export default function Home() {
         }
       }
 
-      const txHash = await walletClient.sendTransaction({
-        account: userAddress as any,
-        to: (addresses as any).TokenVendor, 
-        data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyTokens' }),
-        value: parseEther(swapAmountIn.toString()), 
+      const txHash = await walletClient.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: userAddress,
+          to: (addresses as any).TokenVendor, 
+          data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyTokens' }),
+          value: toHex(parseEther(swapAmountIn.toString()))
+        }]
       });
 
       showToast(`Swap completed successfully! Hash: ${txHash}`);
