@@ -756,20 +756,38 @@ export default function Home() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isSwapping}
-                  className="w-full py-4 bg-gradient-to-r from-neon-teal to-teal-800 hover:from-teal-500 hover:to-neon-teal text-white font-bold rounded-xl transition-all duration-200 mt-2 flex items-center justify-center gap-2 border border-teal-500/30"
-                >
-                  {isSwapping ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Swapping...
-                    </>
-                  ) : (
-                    "Execute Swap"
-                  )}
-                </button>
+                {tokenB === (addresses as any).TERA && !isTokenAssociated ? (
+                  <button
+                    type="button"
+                    disabled={isAssociating}
+                    onClick={handleAssociate}
+                    className="w-full py-4 bg-gradient-to-r from-neon-purple to-purple-800 hover:from-purple-500 hover:to-neon-purple text-white font-bold rounded-xl transition-all duration-200 mt-2 flex items-center justify-center gap-2 border border-purple-500/30"
+                  >
+                    {isAssociating ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Associating TERA...
+                      </>
+                    ) : (
+                      "Associate TERA Token"
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isSwapping}
+                    className="w-full py-4 bg-gradient-to-r from-neon-teal to-teal-800 hover:from-teal-500 hover:to-neon-teal text-white font-bold rounded-xl transition-all duration-200 mt-2 flex items-center justify-center gap-2 border border-teal-500/30"
+                  >
+                    {isSwapping ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Swapping...
+                      </>
+                    ) : (
+                      "Execute Swap"
+                    )}
+                  </button>
+                )}
               </form>
             </div>
           </div>

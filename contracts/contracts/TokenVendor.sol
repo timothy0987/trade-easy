@@ -6,16 +6,33 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 }
 
+// HTS Precompile Interface for Association
+interface IHederaTokenService {
+    function associateToken(address account, address token) external returns (int64 responseCode);
+}
+
 contract TokenVendor {
     IERC20 public teraToken;
     uint256 public tokensPerHbar = 100; // 1 HBAR = 100 TERA
     address public owner;
+    address public constant HTS_ADDRESS = address(0x167);
 
     event TokensPurchased(address buyer, uint256 amountOfHbar, uint256 amountOfTokens);
 
     constructor(address _teraToken) {
         teraToken = IERC20(_teraToken);
         owner = msg.sender;
+    }
+
+    // Call the HTS precompile to associate this contract with an HTS token
+    function associateToken(address _token) external {
+        (bool success, bytes memory result) = HTS_ADDRESS.call(
+            abi.encodeWithSelector(IHederaTokenService.associateToken.selector, address(this), _token)
+        );
+        require(success, "Association call failed");
+        
+        int64 responseCode = abi.decode(result, (int64));
+        require(responseCode == 22, "Association failed, response != 22 (SUCCESS)");
     }
 
     // Function to buy tokens
@@ -25,7 +42,7 @@ contract TokenVendor {
         uint256 amountToBuy = msg.value * tokensPerHbar;
         uint256 vendorBalance = teraToken.balanceOf(address(this));
 
-        require(vendorBalance >= amountToBuy, "Vendor has insufficient tokens");
+        require(vendorBalance >= amountToBuy, "Treasury has insufficient TERA balance");
 
         bool sent = teraToken.transfer(msg.sender, amountToBuy);
         require(sent, "Failed to transfer token to user");

@@ -37,15 +37,10 @@ async function main() {
 
   // 2. Fund TokenVendor with TERA
   console.log("Funding TokenVendor with TERA...");
-  const fundAmount = 1000000000000000000n; // Transfer the whole 1 TERA initially minted
   try {
-      const tokenCreatorAddress = "0x17ac1C0fc9A33c43550A79ED1631c17e134212E3";
-      const TokenCreator = await hre.ethers.getContractAt("TokenCreator", tokenCreatorAddress);
-      const tx = await TokenCreator.transferOut(teraAddress, vendorAddress, fundAmount, { gasPrice, gasLimit });
-      await tx.wait();
-      console.log(`Successfully funded TokenVendor with 1 TERA via TokenCreator`);
+      console.log("Skipping ethers transfer; use fundVendorTreasury.js to fund securely over native HTS.");
   } catch (e) {
-      console.log("Failed to fund vendor via TokenCreator. Error:", e.message);
+      console.log(e);
   }
 
   // 3. Save contract addresses to JSON
