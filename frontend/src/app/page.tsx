@@ -386,33 +386,29 @@ export default function Home() {
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
       
-      if (!publicClient) throw new Error("Public client missing");
-      const currentGasPrice = await publicClient.getGasPrice();
-      
-      const buyTokensData = encodeFunctionData({
-        abi: TokenVendorAbi,
-        functionName: "buyTokens",
-        args: []
-      });
-
-      if (!(addresses as any).TokenVendor || (addresses as any).TokenVendor === userAddress) {
-        console.error('Target contract address is invalid or matching user address:', (addresses as any).TokenVendor);
-        throw new Error('Invalid target contract address');
+      let evmFromAddress = userAddress as string;
+      if (userAddress && userAddress.includes('0.0.')) {
+        const accNum = parseInt(userAddress.split('.')[2], 10);
+        evmFromAddress = '0x' + accNum.toString(16).padStart(40, '0');
       }
 
-      const txParams: any = {
-        from: userAddress,
+      if (!publicClient) throw new Error("Public client missing");
+      const currentGasPrice = await publicClient.getGasPrice();
+
+      if (!(addresses as any).TokenVendor) throw new Error('TokenVendor address is missing from addresses.json');
+      
+      const txValue = toHex(parseEther(swapAmountIn.toString()));
+      
+      const txPayload = {
         to: (addresses as any).TokenVendor,
-        data: buyTokensData,
+        from: evmFromAddress,
+        data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyTokens', args: [] }),
+        value: txValue,
         gas: toHex(1000000n),
-        gasPrice: toHex(currentGasPrice),
-        value: toHex(parsedAmountIn)
+        gasPrice: toHex(currentGasPrice)
       };
 
-      const txHash = await walletClient.request({
-        method: 'eth_sendTransaction',
-        params: [txParams]
-      });
+      const txHash = await walletClient.request({ method: 'eth_sendTransaction', params: [txPayload] });
 
       showToast(`Swap completed successfully! Hash: ${txHash}`);
       setSwapAmountIn("");
