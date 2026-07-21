@@ -392,9 +392,6 @@ export default function Home() {
         evmFromAddress = '0x' + accNum.toString(16).padStart(40, '0');
       }
       
-      const checksummedUser = getAddress(evmFromAddress);
-      const vendorAddress = getAddress((addresses as any).TokenVendor);
-
       if (!publicClient) throw new Error("Public client missing");
       const currentGasPrice = await publicClient.getGasPrice();
       
@@ -404,9 +401,14 @@ export default function Home() {
         args: []
       });
 
+      if (!(addresses as any).TokenVendor || (addresses as any).TokenVendor === userAddress) {
+        console.error('Target contract address is invalid or matching user address:', (addresses as any).TokenVendor);
+        throw new Error('Invalid target contract address');
+      }
+
       const txParams: any = {
-        from: checksummedUser,
-        to: vendorAddress,
+        from: evmFromAddress,
+        to: (addresses as any).TokenVendor,
         data: buyTokensData,
         gas: toHex(1000000n),
         gasPrice: toHex(currentGasPrice),
