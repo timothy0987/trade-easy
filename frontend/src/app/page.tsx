@@ -10,7 +10,8 @@ import {
   useWriteContract, 
   useReadContract,
   usePublicClient,
-  useWalletClient
+  useWalletClient,
+  useSwitchChain
 } from "wagmi";
 import { parseEther, formatEther, encodeFunctionData, toHex, getAddress } from "viem";
 import { 
@@ -135,8 +136,9 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"mint" | "swap" | "agent" | "faucet">("mint");
-  const { address: userAddress, isConnected } = useAccount();
+  const { address: userAddress, isConnected, chainId } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const { switchChainAsync } = useSwitchChain();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
 
@@ -346,6 +348,15 @@ export default function Home() {
       if (!(addresses as any).TokenCreator) throw new Error('TokenCreator address is missing from addresses.json');
       if (!walletClient) throw new Error('Wallet client not found');
 
+      if (chainId !== 296) {
+        try {
+          await switchChainAsync({ chainId: 296 });
+        } catch (switchError) {
+          console.error('Failed to switch network:', switchError);
+          throw new Error('Please switch your wallet to the Hedera Testnet to continue.');
+        }
+      }
+
       const tx = await walletClient.sendTransaction({
         account: userAddress as any,
         to: (addresses as any).TokenCreator,
@@ -389,6 +400,15 @@ export default function Home() {
       if (!(addresses as any).TokenVendor) throw new Error('TokenVendor address is missing from addresses.json');
       if (!walletClient) throw new Error('Wallet client not found');
       
+      if (chainId !== 296) {
+        try {
+          await switchChainAsync({ chainId: 296 });
+        } catch (switchError) {
+          console.error('Failed to switch network:', switchError);
+          throw new Error('Please switch your wallet to the Hedera Testnet to continue.');
+        }
+      }
+
       const txHash = await walletClient.sendTransaction({
         account: userAddress as any,
         to: (addresses as any).TokenVendor, 
