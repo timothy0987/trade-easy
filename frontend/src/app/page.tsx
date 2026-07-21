@@ -386,12 +386,6 @@ export default function Home() {
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
       
-      let evmFromAddress = userAddress;
-      if (userAddress && userAddress.includes('0.0.')) {
-        const accNum = parseInt(userAddress.split('.')[2], 10);
-        evmFromAddress = '0x' + accNum.toString(16).padStart(40, '0');
-      }
-      
       if (!publicClient) throw new Error("Public client missing");
       const currentGasPrice = await publicClient.getGasPrice();
       
@@ -407,7 +401,7 @@ export default function Home() {
       }
 
       const txParams: any = {
-        from: evmFromAddress,
+        from: userAddress,
         to: (addresses as any).TokenVendor,
         data: buyTokensData,
         gas: toHex(1000000n),
