@@ -343,9 +343,16 @@ export default function Home() {
 
     setMintingTx(true);
     try {
-      // Call createToken on the contract
-      const tx = await writeContractAsync({
-        address: addresses.TokenCreator as `0x${string}`,
+      let evmFromAddress = userAddress as string;
+      if (userAddress && userAddress.includes('0.0.')) {
+        const accNum = parseInt(userAddress.split('.')[2], 10);
+        evmFromAddress = '0x' + accNum.toString(16).padStart(40, '0');
+      }
+
+      if (!(addresses as any).TokenCreator) throw new Error('TokenCreator address is missing from addresses.json');
+      if (!walletClient) throw new Error('No wallet connected');
+
+      const mintData = encodeFunctionData({
         abi: TokenCreatorAbi,
         functionName: "createToken",
         args: [
@@ -353,9 +360,19 @@ export default function Home() {
           tokenSymbol,
           BigInt(initialSupply),
           parseInt(tokenDecimals)
-        ],
-        value: parseEther(creationFeeHbar) // attaching HBAR fee for creation
+        ]
       });
+
+      const txPayload = {
+        to: (addresses as any).TokenCreator,
+        from: evmFromAddress,
+        data: mintData,
+        value: toHex(parseEther(creationFeeHbar)),
+        gas: toHex(2000000n),
+        type: '0x0'
+      };
+
+      const tx = await walletClient.request({ method: 'eth_sendTransaction', params: [txPayload] });
 
       alert(`HTS Token Creation transaction submitted! Hash: ${tx}`);
       setTokenName("");
@@ -392,9 +409,6 @@ export default function Home() {
         evmFromAddress = '0x' + accNum.toString(16).padStart(40, '0');
       }
 
-      if (!publicClient) throw new Error("Public client missing");
-      const currentGasPrice = await publicClient.getGasPrice();
-
       if (!(addresses as any).TokenVendor) throw new Error('TokenVendor address is missing from addresses.json');
       
       const txValue = toHex(parseEther(swapAmountIn.toString()));
@@ -404,8 +418,8 @@ export default function Home() {
         from: evmFromAddress,
         data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyTokens', args: [] }),
         value: txValue,
-        gas: toHex(1000000n),
-        gasPrice: toHex(currentGasPrice)
+        gas: toHex(2000000n),
+        type: '0x0'
       };
 
       const txHash = await walletClient.request({ method: 'eth_sendTransaction', params: [txPayload] });
