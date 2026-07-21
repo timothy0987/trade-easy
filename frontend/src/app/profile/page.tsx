@@ -60,11 +60,9 @@ export default function Profile() {
     query: { enabled: !!userAddress, refetchInterval: 5000 }
   });
 
-  const { data: teraBalance } = useReadContract({
-    address: (addresses as any).TERA as `0x${string}`,
-    abi: ERC20_ABI,
-    functionName: "balanceOf",
-    args: userAddress ? [userAddress] : undefined,
+  const { data: teraBalance } = useBalance({
+    address: userAddress,
+    token: (addresses as any).TERA as `0x${string}`,
     query: { enabled: !!userAddress, refetchInterval: 5000 }
   });
 
@@ -264,7 +262,7 @@ export default function Profile() {
             </div>
             <div className="flex items-baseline gap-2 relative z-10">
               <span className="text-3xl font-bold text-white group-hover:text-glow-purple transition-shadow">
-                {isConnected && teraBalance !== undefined ? Number(formatEther(teraBalance as bigint)).toFixed(2) : "0.00"}
+                {isConnected && teraBalance ? Number(teraBalance.formatted).toFixed(2) : '0.00'}
               </span>
               <span className="text-sm text-neon-purple">$TERA</span>
             </div>
