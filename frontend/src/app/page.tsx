@@ -456,7 +456,7 @@ export default function Home() {
         txPayload = {
           from: userAddress,
           to: vendorAddress,
-          data: encodeFunctionData({ abi: TokenVendorAbi, functionName: targetFunction }),
+          data: encodeFunctionData({ abi: Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi, functionName: targetFunction }),
           value: toHex(parseEther(swapAmountIn.toString()))
         };
       } else {
@@ -464,7 +464,7 @@ export default function Home() {
           from: userAddress,
           to: vendorAddress,
           data: encodeFunctionData({ 
-            abi: TokenVendorAbi, 
+            abi: Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi, 
             functionName: targetFunction, 
             args: [parseEther(swapAmountIn.toString())] 
           }),
@@ -798,7 +798,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount In (HBAR)</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AMOUNT IN ({tokenA === "HBAR" ? "HBAR" : tokenA === (addresses as any).TERA ? "TERA" : tokenA === (addresses as any).USDC ? "USDC" : "TOKEN"})</label>
                   <input
                     type="number"
                     value={swapAmountIn}
