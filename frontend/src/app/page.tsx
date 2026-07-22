@@ -422,57 +422,53 @@ export default function Home() {
       else if (tokenA === usdcAddress && tokenB === teraAddress) targetFunction = "swapUsdcForTera";
       else throw new Error("Unsupported swap route.");
 
-      // Check approvals for Path B
+      // STEP 1: ERC-20 APPROVAL (ONLY IF SENDING TOKENS)
       if (tokenA !== "HBAR") {
-        const allowance = await publicClient.readContract({
-          address: tokenA as `0x${string}`,
-          abi: erc20Abi,
-          functionName: 'allowance',
-          args: [userAddress, vendorAddress as `0x${string}`],
-        });
+        const tokenAddress = tokenA === teraAddress ? teraAddress : usdcAddress;
+        
+        const approvePayload = {
+          from: userAddress,
+          to: tokenAddress, // STRICTLY target the token contract, not the Vendor
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [vendorAddress as `0x${string}`, parseEther(swapAmountIn.toString())]
+          })
+          // No 'value' key for approvals
+        };
 
-        if (allowance < parsedAmountIn) {
-          showToast(`Approving ${swapAmountIn} tokens...`);
-          const txHash = await walletClient.request({
-            method: 'eth_sendTransaction',
-            params: [{
-              from: userAddress,
-              to: tokenA as `0x${string}`,
-              data: encodeFunctionData({
-                abi: erc20Abi,
-                functionName: 'approve',
-                args: [vendorAddress as `0x${string}`, parsedAmountIn]
-              })
-            }]
-          });
-          // wait for tx confirmation
-          await publicClient.waitForTransactionReceipt({ hash: txHash });
-          showToast("Approval successful. Executing swap...");
-        }
+        console.log('Dispatching Approval Transaction...');
+        await walletClient.request({ method: 'eth_sendTransaction', params: [approvePayload] });
+        
+        // Critical: Wait for Hedera network to process the approval before swapping
+        console.log('Waiting for approval propagation...');
+        await new Promise(resolve => setTimeout(resolve, 6000)); 
       }
 
-      let txPayload: any = {
+      // STEP 2: THE ACTUAL SWAP
+      const txPayload: any = {
         from: userAddress,
         to: vendorAddress,
       };
 
       if (tokenA === "HBAR") {
-        // Payable functions (buyTokens, buyUsdc)
+        // Payable Route (Working Perfectly)
         txPayload.data = encodeFunctionData({
           abi: Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi,
           functionName: targetFunction
         });
         txPayload.value = toHex(parseEther(swapAmountIn.toString()));
       } else {
-        // Non-Payable functions (sellTera, sellUsdc, etc.)
+        // Non-Payable Route (Tokens to HBAR)
         txPayload.data = encodeFunctionData({
           abi: Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi,
           functionName: targetFunction,
           args: [parseEther(swapAmountIn.toString())]
         });
+        // STRICT: No 'value' key included
       }
 
-      console.log("Dispatching Payload:", txPayload);
+      console.log('Dispatching Swap Transaction...');
       const txHash = await walletClient.request({ method: 'eth_sendTransaction', params: [txPayload] });
 
       showToast(`Swap completed successfully! Hash: ${txHash}`);
