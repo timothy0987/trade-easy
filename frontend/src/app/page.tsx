@@ -451,27 +451,28 @@ export default function Home() {
         }
       }
 
-      let txPayload: any;
+      let txPayload: any = {
+        from: userAddress,
+        to: vendorAddress,
+      };
+
       if (tokenA === "HBAR") {
-        txPayload = {
-          from: userAddress,
-          to: vendorAddress,
-          data: encodeFunctionData({ abi: Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi, functionName: targetFunction }),
-          value: toHex(parseEther(swapAmountIn.toString()))
-        };
+        // Payable functions (buyTokens, buyUsdc)
+        txPayload.data = encodeFunctionData({
+          abi: Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi,
+          functionName: targetFunction
+        });
+        txPayload.value = toHex(parseEther(swapAmountIn.toString()));
       } else {
-        txPayload = {
-          from: userAddress,
-          to: vendorAddress,
-          data: encodeFunctionData({ 
-            abi: Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi, 
-            functionName: targetFunction, 
-            args: [parseEther(swapAmountIn.toString())] 
-          }),
-          value: '0x0'
-        };
+        // Non-Payable functions (sellTera, sellUsdc, etc.)
+        txPayload.data = encodeFunctionData({
+          abi: Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi,
+          functionName: targetFunction,
+          args: [parseEther(swapAmountIn.toString())]
+        });
       }
 
+      console.log("Dispatching Payload:", txPayload);
       const txHash = await walletClient.request({ method: 'eth_sendTransaction', params: [txPayload] });
 
       showToast(`Swap completed successfully! Hash: ${txHash}`);
