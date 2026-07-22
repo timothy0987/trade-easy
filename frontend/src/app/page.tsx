@@ -412,7 +412,17 @@ export default function Home() {
         }
       }
 
-      // Check approvals
+      // Determine target function
+      let targetFunction = "";
+      if (tokenA === "HBAR" && tokenB === teraAddress) targetFunction = "buyTokens";
+      else if (tokenA === teraAddress && tokenB === "HBAR") targetFunction = "sellTera";
+      else if (tokenA === "HBAR" && tokenB === usdcAddress) targetFunction = "buyUsdc";
+      else if (tokenA === usdcAddress && tokenB === "HBAR") targetFunction = "sellUsdc";
+      else if (tokenA === teraAddress && tokenB === usdcAddress) targetFunction = "swapTeraForUsdc";
+      else if (tokenA === usdcAddress && tokenB === teraAddress) targetFunction = "swapUsdcForTera";
+      else throw new Error("Unsupported swap route.");
+
+      // Check approvals for Path B
       if (tokenA !== "HBAR") {
         const allowance = await publicClient.readContract({
           address: tokenA as `0x${string}`,
@@ -441,70 +451,28 @@ export default function Home() {
         }
       }
 
-      let txHash;
-      if (tokenA === "HBAR" && tokenB === teraAddress) {
-        txHash = await walletClient.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: userAddress,
-            to: vendorAddress,
-            data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyTokens' }),
-            value: toHex(parsedAmountIn)
-          }]
-        });
-      } else if (tokenA === teraAddress && tokenB === "HBAR") {
-        txHash = await walletClient.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: userAddress,
-            to: vendorAddress,
-            data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'sellTera', args: [parsedAmountIn] }),
-            value: toHex(0)
-          }]
-        });
-      } else if (tokenA === "HBAR" && tokenB === usdcAddress) {
-        txHash = await walletClient.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: userAddress,
-            to: vendorAddress,
-            data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'buyUsdc' }),
-            value: toHex(parsedAmountIn)
-          }]
-        });
-      } else if (tokenA === usdcAddress && tokenB === "HBAR") {
-        txHash = await walletClient.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: userAddress,
-            to: vendorAddress,
-            data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'sellUsdc', args: [parsedAmountIn] }),
-            value: toHex(0)
-          }]
-        });
-      } else if (tokenA === teraAddress && tokenB === usdcAddress) {
-        txHash = await walletClient.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: userAddress,
-            to: vendorAddress,
-            data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'swapTeraForUsdc', args: [parsedAmountIn] }),
-            value: toHex(0)
-          }]
-        });
-      } else if (tokenA === usdcAddress && tokenB === teraAddress) {
-        txHash = await walletClient.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: userAddress,
-            to: vendorAddress,
-            data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'swapUsdcForTera', args: [parsedAmountIn] }),
-            value: toHex(0)
-          }]
-        });
+      let txPayload: any;
+      if (tokenA === "HBAR") {
+        txPayload = {
+          from: userAddress,
+          to: vendorAddress,
+          data: encodeFunctionData({ abi: TokenVendorAbi, functionName: targetFunction }),
+          value: toHex(parseEther(swapAmountIn.toString()))
+        };
       } else {
-        throw new Error("Unsupported swap route.");
+        txPayload = {
+          from: userAddress,
+          to: vendorAddress,
+          data: encodeFunctionData({ 
+            abi: TokenVendorAbi, 
+            functionName: targetFunction, 
+            args: [parseEther(swapAmountIn.toString())] 
+          }),
+          value: '0x0'
+        };
       }
+
+      const txHash = await walletClient.request({ method: 'eth_sendTransaction', params: [txPayload] });
 
       showToast(`Swap completed successfully! Hash: ${txHash}`);
       setSwapAmountIn("");
