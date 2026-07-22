@@ -459,7 +459,7 @@ export default function Home() {
             from: userAddress,
             to: vendorAddress,
             data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'sellTera', args: [parsedAmountIn] }),
-            value: '0x0'
+            value: toHex(0)
           }]
         });
       } else if (tokenA === "HBAR" && tokenB === usdcAddress) {
@@ -479,7 +479,7 @@ export default function Home() {
             from: userAddress,
             to: vendorAddress,
             data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'sellUsdc', args: [parsedAmountIn] }),
-            value: '0x0'
+            value: toHex(0)
           }]
         });
       } else if (tokenA === teraAddress && tokenB === usdcAddress) {
@@ -489,7 +489,7 @@ export default function Home() {
             from: userAddress,
             to: vendorAddress,
             data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'swapTeraForUsdc', args: [parsedAmountIn] }),
-            value: '0x0'
+            value: toHex(0)
           }]
         });
       } else if (tokenA === usdcAddress && tokenB === teraAddress) {
@@ -499,7 +499,7 @@ export default function Home() {
             from: userAddress,
             to: vendorAddress,
             data: encodeFunctionData({ abi: TokenVendorAbi, functionName: 'swapUsdcForTera', args: [parsedAmountIn] }),
-            value: '0x0'
+            value: toHex(0)
           }]
         });
       } else {
