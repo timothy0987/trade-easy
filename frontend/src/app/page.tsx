@@ -403,12 +403,16 @@ export default function Home() {
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
       
+      // PRE-FLIGHT CHECK: ENFORCE TESTNET
       if (chainId !== 296) {
+        console.log('Wallet is on wrong network. Prompting switch to 296...');
         try {
           await switchChainAsync({ chainId: 296 });
+          // Wait a moment for the wallet provider to fully sync the chain switch
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (switchError) {
           console.error('Failed to switch network:', switchError);
-          throw new Error('Please switch your wallet to the Hedera Testnet to continue.');
+          throw new Error('Please switch your wallet to the Hedera Testnet (Chain ID 296) to continue.');
         }
       }
 
