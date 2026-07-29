@@ -7,20 +7,25 @@ import { metaMaskWallet, rainbowWallet, walletConnectWallet } from '@rainbow-me/
 import { WagmiProvider, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const hederaTestnet = {
-  id: 296,
-  name: 'Hedera Testnet',
-  network: 'hedera-testnet',
-  nativeCurrency: { decimals: 18, name: 'HBAR', symbol: 'HBAR' },
+import { defineChain } from 'viem';
+
+export const x1Testnet = defineChain({
+  id: 10778, // Verify exact X1 Testnet Chain ID if different
+  name: 'X1 Testnet',
+  network: 'x1-testnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'X1',
+    symbol: 'X1',
+  },
   rpcUrls: {
-    default: { http: ['https://testnet.hashio.io/api'] },
-    public: { http: ['https://testnet.hashio.io/api'] },
+    default: { http: ['https://testrpc.x1.tech'] }, // Use standard X1 public RPC
+    public: { http: ['https://testrpc.x1.tech'] },
   },
   blockExplorers: {
-    default: { name: 'HashScan', url: 'https://hashscan.io/testnet' },
+    default: { name: 'X1 Explorer', url: 'https://explorer.x1.tech' },
   },
-  testnet: true,
-};
+});
 
 const hashpackWallet = ({ projectId }: { projectId: string }) => ({
   id: 'hashpack',
@@ -40,9 +45,9 @@ const hashpackWallet = ({ projectId }: { projectId: string }) => ({
 const config = getDefaultConfig({
   appName: 'Trade Easy',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '148d423984d72044810696b994464c9d',
-  chains: [hederaTestnet],
+  chains: [x1Testnet],
   transports: {
-    [hederaTestnet.id]: http(),
+    [x1Testnet.id]: http(),
   },
   wallets: [
     {
