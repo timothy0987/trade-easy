@@ -1,4 +1,4 @@
-export const fetchX1 EcoChainAccountId = async (evmAddress: string): Promise<string | null> => {
+export const fetchX1AccountId = async (evmAddress: string): Promise<string | null> => {
   try {
     const res = await fetch(`https://testnet.mirrornode.x1ecochain.com/api/v1/accounts/${evmAddress}`);
     if (!res.ok) return null;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
-import { fetchX1 EcoChainAccountId } from "@/utils/x1ecochain";
+import { fetchX1AccountId } from "@/utils/hedera";
 import { formatEther, formatUnits } from "viem";
 import { 
   Coins, 
@@ -42,15 +42,15 @@ export default function Profile() {
   
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
-  const [x1ecochainId, setX1 EcoChainId] = useState<string | null>(null);
+  const [x1Id, setX1Id] = useState<string | null>(null);
 
   useEffect(() => {
     if (isConnected && userAddress) {
-      fetchX1 EcoChainAccountId(userAddress).then((id) => {
-        if (id) setX1 EcoChainId(id);
+      fetchX1AccountId(userAddress).then((id) => {
+        if (id) setX1Id(id);
       });
     } else {
-      setX1 EcoChainId(null);
+      setX1Id(null);
     }
   }, [isConnected, userAddress]);
 
@@ -221,7 +221,7 @@ export default function Profile() {
                 )}
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-gray-400 font-mono text-sm bg-black/30 px-3 py-1 w-fit mx-auto sm:mx-0 rounded-full border border-white/5">
                   <Wallet className="w-4 h-4 text-neon-teal" />
-                  {x1ecochainId || shortAddress}
+                  {x1Id || shortAddress}
                 </div>
               </>
             ) : (

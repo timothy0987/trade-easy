@@ -2,7 +2,7 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useState } from "react";
-import { fetchX1 EcoChainAccountId } from "@/utils/x1ecochain";
+import { fetchX1AccountId } from "@/utils/hedera";
 import { Wallet } from "lucide-react";
 
 export const CustomConnectButton = () => {
@@ -24,17 +24,17 @@ export const CustomConnectButton = () => {
           chain &&
           (!authenticationStatus || authenticationStatus === "authenticated");
 
-        const [x1ecochainId, setX1 EcoChainId] = useState<string | null>(null);
+        const [x1Id, setX1Id] = useState<string | null>(null);
 
         useEffect(() => {
           if (connected && account?.address) {
-            fetchX1 EcoChainAccountId(account.address).then((id) => {
+            fetchX1AccountId(account.address).then((id) => {
               if (id) {
-                setX1 EcoChainId(id);
+                setX1Id(id);
               }
             });
           } else {
-            setX1 EcoChainId(null);
+            setX1Id(null);
           }
         }, [connected, account?.address]);
 
@@ -82,7 +82,7 @@ export const CustomConnectButton = () => {
                     className="bg-black/40 border border-white/10 px-4 py-2 rounded-full text-white text-sm hover:border-neon-teal/50 transition-colors flex items-center gap-2"
                   >
                     <Wallet className="w-4 h-4 text-neon-teal" />
-                    {x1ecochainId || (account.address ? `${account.address.slice(0,6)}...${account.address.slice(-4)}` : "Loading...")}
+                    {x1Id || (account.address ? `${account.address.slice(0,6)}...${account.address.slice(-4)}` : "Loading...")}
                   </button>
                 </div>
               );
