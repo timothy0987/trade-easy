@@ -66,12 +66,12 @@ const HTS_ABI = [
 const TokenSelector = ({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [customToken, setCustomToken] = useState("");
-  const teraAddress = (addresses as any).TERA;
+  const terraAddress = (addresses as any).TERA;
   const usdcAddress = (addresses as any).USDC;
-  const isHbar = value === "X1";
-  const isTera = teraAddress && value === teraAddress;
+  const isXn = value === "XN";
+  const isTerra = terraAddress && value === terraAddress;
   const isUsdc = usdcAddress && value === usdcAddress;
-  const isCustom = value !== "" && !isHbar && !isTera && !isUsdc;
+  const isCustom = value !== "" && !isXn && !isTerra && !isUsdc;
 
   return (
     <div className="flex flex-col gap-1.5 relative">
@@ -81,7 +81,7 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className="text-white text-sm truncate pr-2">
-          {isHbar ? "X1" : isTera ? "TERA" : isUsdc ? "USDC" : isCustom ? value : placeholder}
+          {isXn ? "XN" : isTerra ? "TERRA" : isUsdc ? "USDC" : isCustom ? value : placeholder}
         </span>
         <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-300 flex-shrink-0 ${isOpen ? "rotate-90" : ""}`} />
       </div>
@@ -90,16 +90,16 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
         <div className="absolute top-full left-0 right-0 mt-2 bg-[#0B0C10] border border-white/10 rounded-xl overflow-hidden z-50 animate-fadeIn shadow-2xl">
           <div 
             className="px-4 py-3 hover:bg-neon-teal/10 hover:text-neon-teal cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group"
-            onClick={() => { onChange("X1"); setIsOpen(false); }}
+            onClick={() => { onChange("XN"); setIsOpen(false); }}
           >
-            X1
+            XN
           </div>
-          {teraAddress && (
+          {terraAddress && (
             <div 
               className="px-4 py-3 hover:bg-neon-purple/10 hover:text-neon-purple cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group border-t border-white/5"
-              onClick={() => { onChange(teraAddress); setIsOpen(false); }}
+              onClick={() => { onChange(terraAddress); setIsOpen(false); }}
             >
-              TERA 
+              TERRA 
               <span className="text-[10px] uppercase tracking-wider bg-neon-purple/20 text-neon-purple px-2 py-0.5 rounded-full border border-neon-purple/30 text-glow-purple shadow-[0_0_10px_rgba(168,85,247,0.5)]">Native Token</span>
             </div>
           )}
@@ -143,23 +143,31 @@ export default function Home() {
   const { data: walletClient } = useWalletClient();
 
   // --- TICKER STATE ---
-  const [x1UsdPrice, setHbarUsdPrice] = useState<number | null>(null);
+  const [xnUsdPrice, setXnUsdPrice] = useState<number | null>(null);
+  const [terraUsdPrice, setTerraUsdPrice] = useState<number | null>(null);
+  const [isFetchingPrices, setIsFetchingPrices] = useState(true);
   const [pricePulse, setPricePulse] = useState(false);
-  const TERA_PER_X1 = 100; // Exchange rate 100 TERA per 1 X1
+  const TERRA_PER_XN = 100;
 
   useEffect(() => {
     const fetchPrice = async () => {
       try {
-        const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=x1ecochain-hashgraph&vs_currencies=usd");
+        const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=xn,terraport&vs_currencies=usd");
         const data = await res.json();
-        const price = data["x1ecochain-hashgraph"]?.usd;
-        if (price) {
-          setHbarUsdPrice(price);
-          setPricePulse(true);
-          setTimeout(() => setPricePulse(false), 1000);
-        }
+        
+        try {
+          const xnPrice = data["xn"]?.usd;
+          const terraPrice = data["terraport"]?.usd;
+          if (xnPrice) setXnUsdPrice(xnPrice);
+          if (terraPrice) setTerraUsdPrice(terraPrice);
+        } catch(e) {}
+        
+        setIsFetchingPrices(false);
+        setPricePulse(true);
+        setTimeout(() => setPricePulse(false), 1000);
       } catch (err) {
-        console.error("Failed to fetch X1 price:", err);
+        console.error("Failed to fetch prices:", err);
+        setIsFetchingPrices(false);
       }
     };
 
@@ -178,7 +186,7 @@ export default function Home() {
   const [userTokenList, setUserTokenList] = useState<string[]>([]);
 
   // --- SWAP STATE ---
-  const [tokenA, setTokenA] = useState("X1");
+  const [tokenA, setTokenA] = useState("XN");
   const [tokenB, setTokenB] = useState("");
   const [swapAmountIn, setSwapAmountIn] = useState("");
   const [isSwapping, setIsSwapping] = useState(false);
@@ -394,7 +402,7 @@ export default function Home() {
     if (!publicClient) throw new Error('No public client found');
 
     const vendorAddress = (addresses as any).TokenVendor;
-    const teraAddress = (addresses as any).TERA;
+    const terraAddress = (addresses as any).TERRA;
     const usdcAddress = (addresses as any).USDC;
 
     if (!vendorAddress) throw new Error('TokenVendor address is missing from addresses.json');
@@ -417,20 +425,20 @@ export default function Home() {
 
       // Determine target function
       let targetFunction = "";
-      if (tokenA === "X1" && tokenB === teraAddress) targetFunction = "buyTokens";
-      else if (tokenA === teraAddress && tokenB === "X1") targetFunction = "sellTera";
-      else if (tokenA === "X1" && tokenB === usdcAddress) targetFunction = "buyUsdc";
-      else if (tokenA === usdcAddress && tokenB === "X1") targetFunction = "sellUsdc";
-      else if (tokenA === teraAddress && tokenB === usdcAddress) targetFunction = "swapTeraForUsdc";
-      else if (tokenA === usdcAddress && tokenB === teraAddress) targetFunction = "swapUsdcForTera";
+      if (tokenA === "XN" && tokenB === terraAddress) targetFunction = "buyTokens";
+      else if (tokenA === terraAddress && tokenB === "XN") targetFunction = "sellTerra";
+      else if (tokenA === "XN" && tokenB === usdcAddress) targetFunction = "buyUsdc";
+      else if (tokenA === usdcAddress && tokenB === "XN") targetFunction = "sellUsdc";
+      else if (tokenA === terraAddress && tokenB === usdcAddress) targetFunction = "swapTerraForUsdc";
+      else if (tokenA === usdcAddress && tokenB === terraAddress) targetFunction = "swapUsdcForTerra";
       else throw new Error("Unsupported swap route.");
 
       // STEP 1: ERC-20 APPROVAL (ONLY IF SENDING TOKENS)
       const parsedAmount = parseEther(swapAmountIn.toString());
       const contractAbi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi;
 
-      if (tokenA !== "X1") {
-        const tokenAddress = tokenA === teraAddress ? teraAddress : usdcAddress;
+      if (tokenA !== "XN") {
+        const tokenAddress = tokenA === terraAddress ? terraAddress : usdcAddress;
         
         console.log(`Requesting approval for ${tokenA}...`);
         const approveHash = await walletClient.writeContract({
@@ -450,8 +458,8 @@ export default function Home() {
       console.log(`Executing swap: ${targetFunction}...`);
       let txHash;
 
-      if (tokenA === "X1") {
-        // Payable Route (X1 to Token)
+      if (tokenA === "XN") {
+        // Payable Route (XN to Token)
         txHash = await walletClient.writeContract({
           account: userAddress as `0x${string}`,
           address: vendorAddress as `0x${string}`,
@@ -462,7 +470,7 @@ export default function Home() {
         });
         console.log('Swap successful:', txHash);
       } else {
-        // Non-Payable Route (Token to X1/Token)
+        // Non-Payable Route (Token to XN/Token)
         txHash = await walletClient.writeContract({
           account: userAddress as `0x${string}`,
           address: vendorAddress as `0x${string}`,
@@ -617,15 +625,15 @@ export default function Home() {
 
         {/* Live Price Ticker */}
         <div className={`hidden md:flex items-center gap-3 border-r border-white/10 pr-4 mr-2 ${pricePulse ? 'animate-pulse' : 'transition-opacity duration-1000'}`}>
-          {x1UsdPrice ? (
+          {!isFetchingPrices ? (
             <>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-                <span className="text-gray-400">X1:</span> 
-                <span className="text-neon-teal">${x1UsdPrice.toFixed(4)}</span>
+                <span className="text-gray-400">XN:</span> 
+                <span className="text-neon-teal">${xnUsdPrice ? xnUsdPrice.toFixed(4) : "0.0000"}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-                <span className="text-gray-400">TERA:</span> 
-                <span className="text-neon-purple">${(x1UsdPrice / TERA_PER_X1).toFixed(4)}</span>
+                <span className="text-gray-400">TERRA:</span> 
+                <span className="text-neon-purple">${terraUsdPrice ? terraUsdPrice.toFixed(4) : "0.0000"}</span>
               </div>
             </>
           ) : (
