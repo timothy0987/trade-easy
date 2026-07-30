@@ -333,7 +333,9 @@ export default function Home() {
         address: addresses.TeraFaucet as `0x${string}`,
         abi: TeraFaucetAbi,
         functionName: "claimTera",
-        args: []
+        args: [],
+        type: 'legacy',
+        gas: BigInt(300000)
       });
       alert(`Claimed 100 $TERA successfully! Hash: ${tx}`);
       setTimeout(() => refetchClaimTime(), 5000);
@@ -463,7 +465,9 @@ export default function Home() {
           address: tokenAddress as `0x${string}`,
           abi: erc20Abi,
           functionName: 'approve',
-          args: [vendorAddress as `0x${string}`, parsedAmount]
+          args: [vendorAddress as `0x${string}`, parsedAmount],
+          type: 'legacy',
+          gas: BigInt(300000)
         });
         
         console.log('Approval submitted:', approveHash);
@@ -482,7 +486,9 @@ export default function Home() {
           address: vendorAddress as `0x${string}`,
           abi: contractAbi,
           functionName: targetFunction,
-          value: parsedAmount
+          value: parsedAmount,
+          type: 'legacy',
+          gas: BigInt(300000)
           // No args for payable buy functions assuming they rely on msg.value
         });
         console.log('Swap successful:', txHash);
@@ -493,7 +499,9 @@ export default function Home() {
           address: vendorAddress as `0x${string}`,
           abi: contractAbi,
           functionName: targetFunction,
-          args: [parsedAmount]
+          args: [parsedAmount],
+          type: 'legacy',
+          gas: BigInt(300000)
           // Viem automatically omits 'value' for non-payable functions
         });
         console.log('Swap successful:', txHash);
