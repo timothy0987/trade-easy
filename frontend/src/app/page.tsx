@@ -68,7 +68,7 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
   const [customToken, setCustomToken] = useState("");
   const teraAddress = (addresses as any).TERA;
   const usdcAddress = (addresses as any).USDC;
-  const isHbar = value === "HBAR";
+  const isHbar = value === "X1";
   const isTera = teraAddress && value === teraAddress;
   const isUsdc = usdcAddress && value === usdcAddress;
   const isCustom = value !== "" && !isHbar && !isTera && !isUsdc;
@@ -81,7 +81,7 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className="text-white text-sm truncate pr-2">
-          {isHbar ? "HBAR" : isTera ? "TERA" : isUsdc ? "USDC" : isCustom ? value : placeholder}
+          {isHbar ? "X1" : isTera ? "TERA" : isUsdc ? "USDC" : isCustom ? value : placeholder}
         </span>
         <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-300 flex-shrink-0 ${isOpen ? "rotate-90" : ""}`} />
       </div>
@@ -90,9 +90,9 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
         <div className="absolute top-full left-0 right-0 mt-2 bg-[#0B0C10] border border-white/10 rounded-xl overflow-hidden z-50 animate-fadeIn shadow-2xl">
           <div 
             className="px-4 py-3 hover:bg-neon-teal/10 hover:text-neon-teal cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group"
-            onClick={() => { onChange("HBAR"); setIsOpen(false); }}
+            onClick={() => { onChange("X1"); setIsOpen(false); }}
           >
-            HBAR
+            X1
           </div>
           {teraAddress && (
             <div 
@@ -143,23 +143,23 @@ export default function Home() {
   const { data: walletClient } = useWalletClient();
 
   // --- TICKER STATE ---
-  const [hbarUsdPrice, setHbarUsdPrice] = useState<number | null>(null);
+  const [x1UsdPrice, setHbarUsdPrice] = useState<number | null>(null);
   const [pricePulse, setPricePulse] = useState(false);
-  const TERA_PER_HBAR = 100; // Exchange rate 100 TERA per 1 HBAR
+  const TERA_PER_X1 = 100; // Exchange rate 100 TERA per 1 X1
 
   useEffect(() => {
     const fetchPrice = async () => {
       try {
-        const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=hedera-hashgraph&vs_currencies=usd");
+        const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=x1ecochain-hashgraph&vs_currencies=usd");
         const data = await res.json();
-        const price = data["hedera-hashgraph"]?.usd;
+        const price = data["x1ecochain-hashgraph"]?.usd;
         if (price) {
           setHbarUsdPrice(price);
           setPricePulse(true);
           setTimeout(() => setPricePulse(false), 1000);
         }
       } catch (err) {
-        console.error("Failed to fetch HBAR price:", err);
+        console.error("Failed to fetch X1 price:", err);
       }
     };
 
@@ -173,12 +173,12 @@ export default function Home() {
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [tokenDecimals, setTokenDecimals] = useState("18");
   const [initialSupply, setInitialSupply] = useState("");
-  const [creationFeeHbar, setCreationFeeHbar] = useState("25"); // HBAR fee for HTS token creation
+  const [creationFeeHbar, setCreationFeeHbar] = useState("25"); // X1 fee for HTS token creation
   const [mintingTx, setMintingTx] = useState(false);
   const [userTokenList, setUserTokenList] = useState<string[]>([]);
 
   // --- SWAP STATE ---
-  const [tokenA, setTokenA] = useState("");
+  const [tokenA, setTokenA] = useState("X1");
   const [tokenB, setTokenB] = useState("");
   const [swapAmountIn, setSwapAmountIn] = useState("");
   const [isSwapping, setIsSwapping] = useState(false);
@@ -193,7 +193,7 @@ export default function Home() {
   const [agentSelectedToken, setAgentSelectedToken] = useState("");
   const [agentStatus, setAgentStatus] = useState<"idle" | "thinking" | "done" | "rejected">("idle");
   const [agentLogs, setAgentLogs] = useState<Array<{ type: "user" | "agent" | "system" | "error"; text: string; hash?: string }>>([
-    { type: "agent", text: "System Online. Secure policy enforcement active: Max limit 100 HBAR / 1000 tokens. Deployed address allow-list active. How can I assist you on Hedera TestNet today?" }
+    { type: "agent", text: "System Online. Secure policy enforcement active: Max limit 100 X1 / 1000 tokens. Deployed address allow-list active. How can I assist you on X1 EcoChain TestNet today?" }
   ]);
 
   // --- FAUCET STATE ---
@@ -353,7 +353,7 @@ export default function Home() {
           await switchChainAsync({ chainId: 296 });
         } catch (switchError) {
           console.error('Failed to switch network:', switchError);
-          throw new Error('Please switch your wallet to the Hedera Testnet to continue.');
+          throw new Error('Please switch your wallet to the X1 EcoChain Testnet to continue.');
         }
       }
 
@@ -417,10 +417,10 @@ export default function Home() {
 
       // Determine target function
       let targetFunction = "";
-      if (tokenA === "HBAR" && tokenB === teraAddress) targetFunction = "buyTokens";
-      else if (tokenA === teraAddress && tokenB === "HBAR") targetFunction = "sellTera";
-      else if (tokenA === "HBAR" && tokenB === usdcAddress) targetFunction = "buyUsdc";
-      else if (tokenA === usdcAddress && tokenB === "HBAR") targetFunction = "sellUsdc";
+      if (tokenA === "X1" && tokenB === teraAddress) targetFunction = "buyTokens";
+      else if (tokenA === teraAddress && tokenB === "X1") targetFunction = "sellTera";
+      else if (tokenA === "X1" && tokenB === usdcAddress) targetFunction = "buyUsdc";
+      else if (tokenA === usdcAddress && tokenB === "X1") targetFunction = "sellUsdc";
       else if (tokenA === teraAddress && tokenB === usdcAddress) targetFunction = "swapTeraForUsdc";
       else if (tokenA === usdcAddress && tokenB === teraAddress) targetFunction = "swapUsdcForTera";
       else throw new Error("Unsupported swap route.");
@@ -429,7 +429,7 @@ export default function Home() {
       const parsedAmount = parseEther(swapAmountIn.toString());
       const contractAbi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi;
 
-      if (tokenA !== "HBAR") {
+      if (tokenA !== "X1") {
         const tokenAddress = tokenA === teraAddress ? teraAddress : usdcAddress;
         
         console.log(`Requesting approval for ${tokenA}...`);
@@ -442,16 +442,16 @@ export default function Home() {
         });
         
         console.log('Approval submitted:', approveHash);
-        console.log('Waiting for Hedera network to process approval...');
-        await new Promise(resolve => setTimeout(resolve, 7000)); // 7-second buffer for Hedera consensus
+        console.log('Waiting for X1 EcoChain network to process approval...');
+        await new Promise(resolve => setTimeout(resolve, 7000)); // 7-second buffer for X1 EcoChain consensus
       }
 
       // STEP 2: THE ACTUAL SWAP
       console.log(`Executing swap: ${targetFunction}...`);
       let txHash;
 
-      if (tokenA === "HBAR") {
-        // Payable Route (HBAR to Token)
+      if (tokenA === "X1") {
+        // Payable Route (X1 to Token)
         txHash = await walletClient.writeContract({
           account: userAddress as `0x${string}`,
           address: vendorAddress as `0x${string}`,
@@ -462,7 +462,7 @@ export default function Home() {
         });
         console.log('Swap successful:', txHash);
       } else {
-        // Non-Payable Route (Token to HBAR/Token)
+        // Non-Payable Route (Token to X1/Token)
         txHash = await walletClient.writeContract({
           account: userAddress as `0x${string}`,
           address: vendorAddress as `0x${string}`,
@@ -617,15 +617,15 @@ export default function Home() {
 
         {/* Live Price Ticker */}
         <div className={`hidden md:flex items-center gap-3 border-r border-white/10 pr-4 mr-2 ${pricePulse ? 'animate-pulse' : 'transition-opacity duration-1000'}`}>
-          {hbarUsdPrice ? (
+          {x1UsdPrice ? (
             <>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-                <span className="text-gray-400">HBAR:</span> 
-                <span className="text-neon-teal">${hbarUsdPrice.toFixed(4)}</span>
+                <span className="text-gray-400">X1:</span> 
+                <span className="text-neon-teal">${x1UsdPrice.toFixed(4)}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
                 <span className="text-gray-400">TERA:</span> 
-                <span className="text-neon-purple">${(hbarUsdPrice / TERA_PER_HBAR).toFixed(4)}</span>
+                <span className="text-neon-purple">${(x1UsdPrice / TERA_PER_X1).toFixed(4)}</span>
               </div>
             </>
           ) : (
@@ -650,7 +650,7 @@ export default function Home() {
                   Mint HTS Token
                 </h2>
                 <p className="text-gray-400 text-sm mt-1">
-                  Deploy a native Hedera Token Service (HTS) fungible token with auto-supply keys.
+                  Deploy a native X1 EcoChain Token Service (HTS) fungible token with auto-supply keys.
                 </p>
               </div>
 
@@ -702,7 +702,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">HTS Creation Fee (HBAR)</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">HTS Creation Fee (X1)</label>
                   <input
                     type="number"
                     value={creationFeeHbar}
@@ -710,7 +710,7 @@ export default function Home() {
                     placeholder="25"
                     className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
                   />
-                  <span className="text-[10px] text-gray-500">Hedera Token Service requires HBAR to pay creation fees.</span>
+                  <span className="text-[10px] text-gray-500">X1 EcoChain Token Service requires X1 to pay creation fees.</span>
                 </div>
 
                 <button
@@ -798,7 +798,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AMOUNT IN ({tokenA === "HBAR" ? "HBAR" : tokenA === (addresses as any).TERA ? "TERA" : tokenA === (addresses as any).USDC ? "USDC" : "TOKEN"})</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AMOUNT IN ({tokenA === "X1" ? "X1" : tokenA === (addresses as any).TERA ? "TERA" : tokenA === (addresses as any).USDC ? "USDC" : "TOKEN"})</label>
                   <input
                     type="number"
                     value={swapAmountIn}
@@ -856,7 +856,7 @@ export default function Home() {
                 <div className="flex items-center gap-3">
                   <Cpu className="w-7 h-7 text-neon-purple text-glow-purple" />
                   <div>
-                    <h2 className="text-xl font-bold text-white tracking-wide">Hedera Trading Agent</h2>
+                    <h2 className="text-xl font-bold text-white tracking-wide">X1 EcoChain Trading Agent</h2>
                     <span className="text-xs text-neon-purple font-semibold font-mono">POLICY SECURED ACTIVE</span>
                   </div>
                 </div>
@@ -926,7 +926,7 @@ export default function Home() {
                     type="text"
                     value={agentInput}
                     onChange={(e) => setAgentInput(e.target.value)}
-                    placeholder="e.g. Swap 10 HBAR for token..."
+                    placeholder="e.g. Swap 10 X1 for token..."
                     className="flex-1 px-4 py-3.5 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
                   />
                   <button
@@ -967,7 +967,7 @@ export default function Home() {
                   <ShieldAlert className="w-7 h-7 text-neon-teal flex-shrink-0" />
                   <div>
                     <span className="font-bold text-white block">Spending Limit Guardrail</span>
-                    <span className="text-gray-400">Max trade limited to 100 HBAR / 1000 Tokens.</span>
+                    <span className="text-gray-400">Max trade limited to 100 X1 / 1000 Tokens.</span>
                   </div>
                 </div>
 

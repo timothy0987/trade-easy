@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
-import { fetchHederaAccountId } from "@/utils/hedera";
+import { fetchX1 EcoChainAccountId } from "@/utils/x1ecochain";
 import { formatEther, formatUnits } from "viem";
 import { 
   Coins, 
@@ -42,20 +42,20 @@ export default function Profile() {
   
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
-  const [hederaId, setHederaId] = useState<string | null>(null);
+  const [x1ecochainId, setX1 EcoChainId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isConnected && userAddress) {
-      fetchHederaAccountId(userAddress).then((id) => {
-        if (id) setHederaId(id);
+      fetchX1 EcoChainAccountId(userAddress).then((id) => {
+        if (id) setX1 EcoChainId(id);
       });
     } else {
-      setHederaId(null);
+      setX1 EcoChainId(null);
     }
   }, [isConnected, userAddress]);
 
   // Fetch Balances
-  const { data: hbarBalance } = useBalance({ 
+  const { data: x1Balance } = useBalance({ 
     address: userAddress,
     query: { enabled: !!userAddress, refetchInterval: 5000 }
   });
@@ -221,7 +221,7 @@ export default function Profile() {
                 )}
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-gray-400 font-mono text-sm bg-black/30 px-3 py-1 w-fit mx-auto sm:mx-0 rounded-full border border-white/5">
                   <Wallet className="w-4 h-4 text-neon-teal" />
-                  {hederaId || shortAddress}
+                  {x1ecochainId || shortAddress}
                 </div>
               </>
             ) : (
@@ -235,19 +235,19 @@ export default function Profile() {
 
         {/* Wallet Balances Metric Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* HBAR Balance */}
+          {/* X1 Balance */}
           <div className="glass-card p-6 flex flex-col gap-4 border border-white/5 hover:border-white/10 transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">HBAR Balance</span>
+              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">X1 Balance</span>
               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
                 <span className="font-bold text-white text-xs tracking-tighter">Ħ</span>
               </div>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-white">
-                {isConnected && hbarBalance ? Number(hbarBalance.formatted).toFixed(2) : "0.00"}
+                {isConnected && x1Balance ? Number(x1Balance.formatted).toFixed(2) : "0.00"}
               </span>
-              <span className="text-sm text-gray-500">HBAR</span>
+              <span className="text-sm text-gray-500">X1</span>
             </div>
           </div>
 

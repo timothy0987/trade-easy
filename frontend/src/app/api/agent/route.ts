@@ -14,7 +14,7 @@ if (apiKey) {
 
 // Configured Guardrails
 const POLICY_SPENDING_LIMITS = {
-  HBAR: 100, // Max 100 HBAR per trade
+  X1: 100, // Max 100 X1 per trade
   DEFAULT_TOKEN: 1000, // Max 1000 custom tokens per trade
 };
 
@@ -47,21 +47,21 @@ export async function POST(req: NextRequest) {
     if (aiClient) {
       try {
         const model = aiClient.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const systemPrompt = `You are the parsing module for Trade Easy, a Web3 AI Agent on Hedera Testnet.
+        const systemPrompt = `You are the parsing module for Trade Easy, a Web3 AI Agent on X1 EcoChain Testnet.
 Parse the user's natural language command into a JSON object containing:
 - action: "mint" | "swap" | "balance" | "unknown"
 - params: an object containing:
   - amount: number (the amount to swap or mint)
   - tokenAddress: string (the address of the token to mint or swap, if present)
-  - tokenIn: string (symbol or address, e.g. "TE" or "HBAR")
-  - tokenOut: string (symbol or address, e.g. "TE" or "HBAR")
+  - tokenIn: string (symbol or address, e.g. "TE" or "X1")
+  - tokenOut: string (symbol or address, e.g. "TE" or "X1")
 
 Examples:
 User: "Mint 500 of token 0x17ac1C0fc9A33c43550A79ED1631c17e134212E3"
 Response: {"action": "mint", "params": {"amount": 500, "tokenAddress": "0x17ac1C0fc9A33c43550A79ED1631c17e134212E3"}}
 
-User: "Swap 10 HBAR for token 0x17ac1C0fc9A33c43550A79ED1631c17e134212E3"
-Response: {"action": "swap", "params": {"amount": 10, "tokenIn": "HBAR", "tokenOut": "0x17ac1C0fc9A33c43550A79ED1631c17e134212E3"}}
+User: "Swap 10 X1 for token 0x17ac1C0fc9A33c43550A79ED1631c17e134212E3"
+Response: {"action": "swap", "params": {"amount": 10, "tokenIn": "X1", "tokenOut": "0x17ac1C0fc9A33c43550A79ED1631c17e134212E3"}}
 
 User: "What is my agent balance?"
 Response: {"action": "balance", "params": {}}
@@ -91,8 +91,8 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
     // 1. Check Spending Limit Policy
     if (parsedAction.action === "mint" || parsedAction.action === "swap") {
       const amount = parsedAction.params.amount || 0;
-      const isHbar = parsedAction.params.tokenIn === "HBAR" || parsedAction.params.tokenOut === "HBAR";
-      const limit = isHbar ? POLICY_SPENDING_LIMITS.HBAR : POLICY_SPENDING_LIMITS.DEFAULT_TOKEN;
+      const isHbar = parsedAction.params.tokenIn === "X1" || parsedAction.params.tokenOut === "X1";
+      const limit = isHbar ? POLICY_SPENDING_LIMITS.X1 : POLICY_SPENDING_LIMITS.DEFAULT_TOKEN;
       
       if (amount > limit) {
         return NextResponse.json({
@@ -130,7 +130,7 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
 
     // --- CHECK TERA BALANCE FOR FEE DISCOUNT ---
     let hasTera = false;
-    let actualFee = 2; // Default 2 HBAR
+    let actualFee = 2; // Default 2 X1
     if (userAddress && (addresses as any).TERA) {
       try {
         const checkProvider = new ethers.JsonRpcProvider(PROVIDER_URL);
@@ -148,8 +148,8 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
     }
 
     const discountMsg = hasTera 
-      ? `\n\n[TERA Holder Discount Applied: 50% off! Fee: ${actualFee} HBAR (Standard: 2 HBAR)]`
-      : `\n\n[Transaction Fee: 2 HBAR (Hold TERA for a 50% fee discount!)]`;
+      ? `\n\n[TERA Holder Discount Applied: 50% off! Fee: ${actualFee} X1 (Standard: 2 X1)]`
+      : `\n\n[Transaction Fee: 2 X1 (Hold TERA for a 50% fee discount!)]`;
 
     // --- EXECUTE ON-CHAIN TRANSACTIONS ---
     const privateKey = process.env.PRIVATE_KEY;
@@ -172,7 +172,7 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
         action: "balance",
         agentAddress: wallet.address,
         balance: balanceHbar,
-        message: `Agent wallet address is ${wallet.address} with a balance of ${balanceHbar} HBAR.`
+        message: `Agent wallet address is ${wallet.address} with a balance of ${balanceHbar} X1.`
       });
     }
 
@@ -212,7 +212,7 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
       console.log(`Executing swap of ${amount} ${tokenIn} -> ${tokenOut}`);
       
       // Call Router swapExactTokensForTokens
-      // We will perform a simple approval first if it's not HBAR
+      // We will perform a simple approval first if it's not X1
       const routerContract = new ethers.Contract(addresses.TradeEasyRouter, TradeEasyRouterAbi, wallet);
       
       // Let's execute approval for tokenIn
@@ -264,7 +264,7 @@ Only return valid JSON. Do not include markdown formatting, backticks, or explan
 function fallbackParse(prompt: string) {
   const cleanPrompt = prompt.toLowerCase();
   
-  if (cleanPrompt.includes("balance") || cleanPrompt.includes("how much hbar")) {
+  if (cleanPrompt.includes("balance") || cleanPrompt.includes("how much x1")) {
     return { action: "balance" as const, params: {} };
   }
   
