@@ -10,20 +10,20 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { defineChain } from 'viem';
 
 export const x1Testnet = defineChain({
-  id: 10778, // Verify exact X1 Testnet Chain ID if different
-  name: 'X1 Testnet',
+  id: 204005, // Updated to Thirdweb X1 Testnet Chain ID
+  name: 'X1 Network Testnet',
   network: 'x1-testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'X1',
-    symbol: 'X1',
+    name: 'XN',
+    symbol: 'XN',
   },
   rpcUrls: {
-    default: { http: ['https://testrpc.x1.tech'] }, // Use standard X1 public RPC
-    public: { http: ['https://testrpc.x1.tech'] },
+    default: { http: ['https://204005.rpc.thirdweb.com'] }, // Active RPC
+    public: { http: ['https://204005.rpc.thirdweb.com'] },
   },
   blockExplorers: {
-    default: { name: 'X1 Explorer', url: 'https://explorer.x1.tech' },
+    default: { name: 'X1 Explorer', url: 'https://explorer.x1-testnet.xen.network' },
   },
 });
 

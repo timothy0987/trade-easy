@@ -311,6 +311,18 @@ export default function Home() {
   const handleClaimFaucet = async () => {
     if (!isConnected) return alert("Please connect your wallet");
 
+    // PRE-FLIGHT CHECK: ENFORCE X1 TESTNET
+    if (chainId !== 204005) {
+      console.log('Wallet is on wrong network. Prompting switch to 204005...');
+      try {
+        await switchChainAsync({ chainId: 204005 });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (switchError) {
+        console.error('Failed to switch network:', switchError);
+        throw new Error('Please switch your wallet to the X1 Testnet to continue.');
+      }
+    }
+
     if (!addresses.TeraFaucet || addresses.TeraFaucet === '0x0000000000000000000000000000000000000000') {
       throw new Error("Faucet contract not deployed on X1 Testnet yet.");
     }
@@ -417,10 +429,10 @@ export default function Home() {
       const parsedAmountIn = parseEther(swapAmountIn);
       
       // PRE-FLIGHT CHECK: ENFORCE X1 TESTNET
-      if (chainId !== 10778) {
-        console.log('Wallet is on wrong network. Prompting switch to 10778...');
+      if (chainId !== 204005) {
+        console.log('Wallet is on wrong network. Prompting switch to 204005...');
         try {
-          await switchChainAsync({ chainId: 10778 });
+          await switchChainAsync({ chainId: 204005 });
           await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (switchError) {
           console.error('Failed to switch network:', switchError);
