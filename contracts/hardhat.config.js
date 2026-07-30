@@ -17,6 +17,11 @@ module.exports = {
       chainId: 296,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: 2000000000000 // 2000 Gwei
+    },
+    x1Testnet: {
+      url: "https://testrpc.x1.tech",
+      chainId: 10778,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
   sourcify: {

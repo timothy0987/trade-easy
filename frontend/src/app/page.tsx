@@ -310,6 +310,11 @@ export default function Home() {
 
   const handleClaimFaucet = async () => {
     if (!isConnected) return alert("Please connect your wallet");
+
+    if (!addresses.TeraFaucet || addresses.TeraFaucet === '0x0000000000000000000000000000000000000000') {
+      throw new Error("Faucet contract not deployed on X1 Testnet yet.");
+    }
+
     setFaucetClaimTx(true);
     try {
       const tx = await writeContractAsync({
