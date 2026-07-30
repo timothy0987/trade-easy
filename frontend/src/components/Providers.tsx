@@ -23,7 +23,7 @@ export const x1Testnet = defineChain({
     public: { http: ['https://x1-testnet.xen.network'] },
   },
   blockExplorers: {
-    default: { name: 'X1 Explorer', url: 'https://explorer.x1-testnet.xen.network' },
+    default: { name: 'Blockscout', url: 'https://explorer.x1-testnet.xen.network' },
   },
 });
 
