@@ -335,7 +335,7 @@ export default function Home() {
         functionName: "claimTera",
         args: [],
         type: 'legacy',
-        gas: BigInt(300000),
+        gas: BigInt(500000),
         gasPrice: BigInt(20000000000)
       });
       alert(`Claimed 100 $TERA successfully! Hash: ${tx}`);
@@ -468,7 +468,7 @@ export default function Home() {
           functionName: 'approve',
           args: [vendorAddress as `0x${string}`, parsedAmount],
           type: 'legacy',
-          gas: BigInt(300000),
+          gas: BigInt(500000),
         gasPrice: BigInt(20000000000)
         });
         
@@ -490,7 +490,7 @@ export default function Home() {
           functionName: targetFunction,
           value: parsedAmount,
           type: 'legacy',
-          gas: BigInt(300000),
+          gas: BigInt(500000),
         gasPrice: BigInt(20000000000)
           // No args for payable buy functions assuming they rely on msg.value
         });
@@ -504,7 +504,7 @@ export default function Home() {
           functionName: targetFunction,
           args: [parsedAmount],
           type: 'legacy',
-          gas: BigInt(300000),
+          gas: BigInt(500000),
         gasPrice: BigInt(20000000000)
           // Viem automatically omits 'value' for non-payable functions
         });

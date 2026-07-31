@@ -19,9 +19,11 @@ module.exports = {
       gasPrice: 2000000000000 // 2000 Gwei
     },
     x1Testnet: {
-      url: "https://204005.rpc.thirdweb.com",
+      url: "https://x1-testnet.xen.network",
       chainId: 204005,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      gas: 3000000,
+      gasPrice: 1500000000
     }
   },
   sourcify: {
