@@ -235,10 +235,10 @@ export default function Profile() {
 
         {/* Wallet Balances Metric Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* OKB Balance */}
+          {/* X1 Balance */}
           <div className="glass-card p-6 flex flex-col gap-4 border border-white/5 hover:border-white/10 transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">OKB Balance</span>
+              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">X1 Balance</span>
               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
                 <span className="font-bold text-white text-xs tracking-tighter">Ħ</span>
               </div>
@@ -247,7 +247,7 @@ export default function Profile() {
               <span className="text-3xl font-bold text-white">
                 {isConnected && x1Balance ? Number(x1Balance.formatted).toFixed(2) : "0.00"}
               </span>
-              <span className="text-sm text-gray-500">OKB</span>
+              <span className="text-sm text-gray-500">X1</span>
             </div>
           </div>
 
