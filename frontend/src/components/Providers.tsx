@@ -15,8 +15,8 @@ export const x1Testnet = defineChain({
   network: 'x1-testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'XN',
-    symbol: 'XN',
+    name: 'X1 Test Token',
+    symbol: 'X1T',
   },
   rpcUrls: {
     default: { http: ['https://x1-testnet.xen.network', 'https://204005.rpc.thirdweb.com'] }, 
