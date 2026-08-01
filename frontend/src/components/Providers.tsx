@@ -19,8 +19,8 @@ export const x1Testnet = defineChain({
     symbol: 'XN',
   },
   rpcUrls: {
-    default: { http: ['https://x1-testnet.xen.network'] }, // Switch to official native RPC
-    public: { http: ['https://x1-testnet.xen.network'] },
+    default: { http: ['https://x1-testnet.xen.network', 'https://204005.rpc.thirdweb.com'] }, 
+    public: { http: ['https://x1-testnet.xen.network', 'https://204005.rpc.thirdweb.com'] },
   },
   blockExplorers: {
     default: { name: 'X1 Explorer', url: 'https://explorer.x1-testnet.xen.network' },
