@@ -18,12 +18,10 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: 2000000000000 // 2000 Gwei
     },
-    x1Testnet: {
-      url: "https://x1-testnet.xen.network",
-      chainId: 204005,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      gas: 3000000,
-      gasPrice: 1500000000
+    xLayerTestnet: {
+      url: "https://testrpc.xlayer.tech",
+      chainId: 1952,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
   sourcify: {

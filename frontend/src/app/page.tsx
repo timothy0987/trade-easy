@@ -68,7 +68,7 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
   const [customToken, setCustomToken] = useState("");
   const terraAddress = (addresses as any).TERA;
   const usdcAddress = (addresses as any).USDC;
-  const isXn = value === "XN";
+  const isXn = value === "OKB";
   const isTerra = terraAddress && value === terraAddress;
   const isUsdc = usdcAddress && value === usdcAddress;
   const isCustom = value !== "" && !isXn && !isTerra && !isUsdc;
@@ -81,7 +81,7 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className="text-white text-sm truncate pr-2">
-          {isXn ? "XN" : isTerra ? "TERRA" : isUsdc ? "USDC" : isCustom ? value : placeholder}
+          {isXn ? "OKB" : isTerra ? "TERRA" : isUsdc ? "USDC" : isCustom ? value : placeholder}
         </span>
         <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-300 flex-shrink-0 ${isOpen ? "rotate-90" : ""}`} />
       </div>
@@ -90,9 +90,9 @@ const TokenSelector = ({ label, value, onChange, placeholder }: { label: string,
         <div className="absolute top-full left-0 right-0 mt-2 bg-[#0B0C10] border border-white/10 rounded-xl overflow-hidden z-50 animate-fadeIn shadow-2xl">
           <div 
             className="px-4 py-3 hover:bg-neon-teal/10 hover:text-neon-teal cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group"
-            onClick={() => { onChange("XN"); setIsOpen(false); }}
+            onClick={() => { onChange("OKB"); setIsOpen(false); }}
           >
-            XN
+            OKB
           </div>
           {terraAddress && (
             <div 
@@ -147,7 +147,7 @@ export default function Home() {
   const [terraUsdPrice, setTerraUsdPrice] = useState<number | null>(null);
   const [isFetchingPrices, setIsFetchingPrices] = useState(true);
   const [pricePulse, setPricePulse] = useState(false);
-  const TERRA_PER_XN = 100;
+  const TERRA_PER_OKB = 100;
 
   useEffect(() => {
     const fetchPrice = async () => {
@@ -181,12 +181,12 @@ export default function Home() {
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [tokenDecimals, setTokenDecimals] = useState("18");
   const [initialSupply, setInitialSupply] = useState("");
-  const [creationFeeHbar, setCreationFeeHbar] = useState("25"); // X1 fee for HTS token creation
+  const [creationFeeHbar, setCreationFeeHbar] = useState("25"); // OKB fee for HTS token creation
   const [mintingTx, setMintingTx] = useState(false);
   const [userTokenList, setUserTokenList] = useState<string[]>([]);
 
   // --- SWAP STATE ---
-  const [tokenA, setTokenA] = useState("XN");
+  const [tokenA, setTokenA] = useState("OKB");
   const [tokenB, setTokenB] = useState("");
   const [swapAmountIn, setSwapAmountIn] = useState("");
   const [isSwapping, setIsSwapping] = useState(false);
@@ -201,7 +201,7 @@ export default function Home() {
   const [agentSelectedToken, setAgentSelectedToken] = useState("");
   const [agentStatus, setAgentStatus] = useState<"idle" | "thinking" | "done" | "rejected">("idle");
   const [agentLogs, setAgentLogs] = useState<Array<{ type: "user" | "agent" | "system" | "error"; text: string; hash?: string }>>([
-    { type: "agent", text: "System Online. Secure policy enforcement active: Max limit 100 X1 / 1000 tokens. Deployed address allow-list active. How can I assist you on X1 EcoChain TestNet today?" }
+    { type: "agent", text: "System Online. Secure policy enforcement active: Max limit 100 OKB / 1000 tokens. Deployed address allow-list active. How can I assist you on X Layer TestNet today?" }
   ]);
 
   // --- FAUCET STATE ---
@@ -311,20 +311,20 @@ export default function Home() {
   const handleClaimFaucet = async () => {
     if (!isConnected) return alert("Please connect your wallet");
 
-    // PRE-FLIGHT CHECK: ENFORCE X1 TESTNET
-    if (chainId !== 204005) {
-      console.log('Wallet is on wrong network. Prompting switch to 204005...');
+    // PRE-FLIGHT CHECK: ENFORCE OKB TESTNET
+    if (chainId !== 1952) {
+      console.log('Wallet is on wrong network. Prompting switch to 1952...');
       try {
-        await switchChainAsync({ chainId: 204005 });
+        await switchChainAsync({ chainId: 1952 });
         await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (switchError) {
         console.error('Failed to switch network:', switchError);
-        throw new Error('Please switch your wallet to the X1 Testnet to continue.');
+        throw new Error('Please switch your wallet to the X Layer Testnet to continue.');
       }
     }
 
     if (!addresses.TeraFaucet || addresses.TeraFaucet === '0x0000000000000000000000000000000000000000') {
-      throw new Error("Faucet contract not deployed on X1 Testnet yet.");
+      throw new Error("Faucet contract not deployed on X Layer Testnet yet.");
     }
 
     setFaucetClaimTx(true);
@@ -381,7 +381,7 @@ export default function Home() {
           await switchChainAsync({ chainId: 296 });
         } catch (switchError) {
           console.error('Failed to switch network:', switchError);
-          throw new Error('Please switch your wallet to the X1 EcoChain Testnet to continue.');
+          throw new Error('Please switch your wallet to the X Layer Testnet to continue.');
         }
       }
 
@@ -431,24 +431,24 @@ export default function Home() {
     try {
       const parsedAmountIn = parseEther(swapAmountIn);
       
-      // PRE-FLIGHT CHECK: ENFORCE X1 TESTNET
-      if (chainId !== 204005) {
-        console.log('Wallet is on wrong network. Prompting switch to 204005...');
+      // PRE-FLIGHT CHECK: ENFORCE OKB TESTNET
+      if (chainId !== 1952) {
+        console.log('Wallet is on wrong network. Prompting switch to 1952...');
         try {
-          await switchChainAsync({ chainId: 204005 });
+          await switchChainAsync({ chainId: 1952 });
           await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (switchError) {
           console.error('Failed to switch network:', switchError);
-          throw new Error('Please switch your wallet to the X1 Testnet to continue.');
+          throw new Error('Please switch your wallet to the X Layer Testnet to continue.');
         }
       }
 
       // Determine target function
       let targetFunction = "";
-      if (tokenA === "XN" && tokenB === terraAddress) targetFunction = "buyTokens";
-      else if (tokenA === terraAddress && tokenB === "XN") targetFunction = "sellTerra";
-      else if (tokenA === "XN" && tokenB === usdcAddress) targetFunction = "buyUsdc";
-      else if (tokenA === usdcAddress && tokenB === "XN") targetFunction = "sellUsdc";
+      if (tokenA === "OKB" && tokenB === terraAddress) targetFunction = "buyTokens";
+      else if (tokenA === terraAddress && tokenB === "OKB") targetFunction = "sellTerra";
+      else if (tokenA === "OKB" && tokenB === usdcAddress) targetFunction = "buyUsdc";
+      else if (tokenA === usdcAddress && tokenB === "OKB") targetFunction = "sellUsdc";
       else if (tokenA === terraAddress && tokenB === usdcAddress) targetFunction = "swapTerraForUsdc";
       else if (tokenA === usdcAddress && tokenB === terraAddress) targetFunction = "swapUsdcForTerra";
       else throw new Error("Unsupported swap route.");
@@ -457,7 +457,7 @@ export default function Home() {
       const parsedAmount = parseEther(swapAmountIn.toString());
       const contractAbi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi;
 
-      if (tokenA !== "XN") {
+      if (tokenA !== "OKB") {
         const tokenAddress = tokenA === terraAddress ? terraAddress : usdcAddress;
         
         console.log(`Requesting approval for ${tokenA}...`);
@@ -473,16 +473,16 @@ export default function Home() {
         });
         
         console.log('Approval submitted:', approveHash);
-        console.log('Waiting for X1 EcoChain network to process approval...');
-        await new Promise(resolve => setTimeout(resolve, 7000)); // 7-second buffer for X1 EcoChain consensus
+        console.log('Waiting for X Layer network to process approval...');
+        await new Promise(resolve => setTimeout(resolve, 7000)); // 7-second buffer for X Layer consensus
       }
 
       // STEP 2: THE ACTUAL SWAP
       console.log(`Executing swap: ${targetFunction}...`);
       let txHash;
 
-      if (tokenA === "XN") {
-        // Payable Route (XN to Token)
+      if (tokenA === "OKB") {
+        // Payable Route (OKB to Token)
         txHash = await walletClient.writeContract({
           account: userAddress as `0x${string}`,
           address: vendorAddress as `0x${string}`,
@@ -496,7 +496,7 @@ export default function Home() {
         });
         console.log('Swap successful:', txHash);
       } else {
-        // Non-Payable Route (Token to XN/Token)
+        // Non-Payable Route (Token to OKB/Token)
         txHash = await walletClient.writeContract({
           account: userAddress as `0x${string}`,
           address: vendorAddress as `0x${string}`,
@@ -657,7 +657,7 @@ export default function Home() {
           {!isFetchingPrices ? (
             <>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-                <span className="text-gray-400">XN:</span> 
+                <span className="text-gray-400">OKB:</span> 
                 <span className="text-neon-teal">${xnUsdPrice ? xnUsdPrice.toFixed(4) : "0.0000"}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
@@ -687,7 +687,7 @@ export default function Home() {
                   Mint HTS Token
                 </h2>
                 <p className="text-gray-400 text-sm mt-1">
-                  Deploy a native X1 EcoChain Token Service (HTS) fungible token with auto-supply keys.
+                  Deploy a native X Layer Token Service (HTS) fungible token with auto-supply keys.
                 </p>
               </div>
 
@@ -739,7 +739,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">HTS Creation Fee (X1)</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">HTS Creation Fee (OKB)</label>
                   <input
                     type="number"
                     value={creationFeeHbar}
@@ -747,7 +747,7 @@ export default function Home() {
                     placeholder="25"
                     className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
                   />
-                  <span className="text-[10px] text-gray-500">X1 EcoChain Token Service requires X1 to pay creation fees.</span>
+                  <span className="text-[10px] text-gray-500">X Layer Token Service requires OKB to pay creation fees.</span>
                 </div>
 
                 <button
@@ -835,7 +835,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AMOUNT IN ({tokenA === "X1" ? "X1" : tokenA === (addresses as any).TERA ? "TERA" : tokenA === (addresses as any).USDC ? "USDC" : "TOKEN"})</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AMOUNT IN ({tokenA === "OKB" ? "OKB" : tokenA === (addresses as any).TERA ? "TERA" : tokenA === (addresses as any).USDC ? "USDC" : "TOKEN"})</label>
                   <input
                     type="number"
                     value={swapAmountIn}
@@ -893,7 +893,7 @@ export default function Home() {
                 <div className="flex items-center gap-3">
                   <Cpu className="w-7 h-7 text-neon-purple text-glow-purple" />
                   <div>
-                    <h2 className="text-xl font-bold text-white tracking-wide">X1 EcoChain Trading Agent</h2>
+                    <h2 className="text-xl font-bold text-white tracking-wide">X Layer Trading Agent</h2>
                     <span className="text-xs text-neon-purple font-semibold font-mono">POLICY SECURED ACTIVE</span>
                   </div>
                 </div>
@@ -963,7 +963,7 @@ export default function Home() {
                     type="text"
                     value={agentInput}
                     onChange={(e) => setAgentInput(e.target.value)}
-                    placeholder="e.g. Swap 10 X1 for token..."
+                    placeholder="e.g. Swap 10 OKB for token..."
                     className="flex-1 px-4 py-3.5 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
                   />
                   <button
@@ -1004,7 +1004,7 @@ export default function Home() {
                   <ShieldAlert className="w-7 h-7 text-neon-teal flex-shrink-0" />
                   <div>
                     <span className="font-bold text-white block">Spending Limit Guardrail</span>
-                    <span className="text-gray-400">Max trade limited to 100 X1 / 1000 Tokens.</span>
+                    <span className="text-gray-400">Max trade limited to 100 OKB / 1000 Tokens.</span>
                   </div>
                 </div>
 

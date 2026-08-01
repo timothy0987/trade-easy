@@ -9,21 +9,21 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { defineChain } from 'viem';
 
-export const x1Testnet = defineChain({
-  id: 204005, // Updated to Thirdweb X1 Testnet Chain ID
-  name: 'X1 Network Testnet',
-  network: 'x1-testnet',
+export const xLayerTestnet = defineChain({
+  id: 1952,
+  name: 'X Layer Testnet',
+  network: 'xlayer-testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'XN',
-    symbol: 'XN',
+    name: 'OKB', 
+    symbol: 'OKB',
   },
   rpcUrls: {
-    default: { http: ['https://x1-testnet.xen.network'] }, // Switch to official native RPC
-    public: { http: ['https://x1-testnet.xen.network'] },
+    default: { http: ['https://testrpc.xlayer.tech'] }, 
+    public: { http: ['https://testrpc.xlayer.tech'] },
   },
   blockExplorers: {
-    default: { name: 'X1 Explorer', url: 'https://explorer.x1-testnet.xen.network' },
+    default: { name: 'OKLink', url: 'https://www.oklink.com/xlayer-test' },
   },
 });
 
@@ -45,9 +45,9 @@ const hashpackWallet = ({ projectId }: { projectId: string }) => ({
 const config = getDefaultConfig({
   appName: 'Trade Easy',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '148d423984d72044810696b994464c9d',
-  chains: [x1Testnet],
+  chains: [xLayerTestnet],
   transports: {
-    [x1Testnet.id]: http(),
+    [xLayerTestnet.id]: http(),
   },
   wallets: [
     {

@@ -3,8 +3,8 @@ import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trade Easy | X1 EcoChain dApp & AI Trading Agent",
-  description: "Mint custom HTS tokens, swap assets instantly via constant product AMM pools, and run guardrail-enforced AI trades on X1 EcoChain TestNet.",
+  title: "Trade Easy | X Layer dApp & AI Trading Agent",
+  description: "Mint custom HTS tokens, swap assets instantly via constant product AMM pools, and run guardrail-enforced AI trades on X Layer TestNet.",
   icons: {
     icon: "/Artboard_15_4x-100_1_-removebg-preview.png",
     apple: "/Artboard_15_4x-100_1_-removebg-preview.png",
