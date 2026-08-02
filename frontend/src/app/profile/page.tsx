@@ -37,7 +37,7 @@ const ERC20_ABI = [
 ] as const;
 
 export default function Profile() {
-  const { address: userAddress, isConnected } = useAccount();
+  const { address: userAddress, address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -56,9 +56,8 @@ export default function Profile() {
 
   // Fetch Balances
   const { data: balanceData } = useBalance({ 
-    address: userAddress,
+    address: address,
     chainId: 204005,
-    query: { enabled: !!userAddress }
   });
 
   const { data: teraBalance } = useBalance({
@@ -246,7 +245,7 @@ export default function Profile() {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-white">
-                {isConnected && balanceData?.formatted ? parseFloat(balanceData.formatted).toFixed(2) : "0.00"}
+                {balanceData ? Number(balanceData.formatted).toFixed(2) : '0.00'}
               </span>
               <span className="text-sm text-gray-500">X1T</span>
             </div>
