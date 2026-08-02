@@ -55,10 +55,10 @@ export default function Profile() {
   }, [isConnected, userAddress]);
 
   // Fetch Balances
-  const { data: nativeBalance } = useBalance({ 
+  const { data: balanceData } = useBalance({ 
     address: userAddress,
     chainId: 204005,
-    query: { enabled: !!userAddress, refetchInterval: 5000 }
+    query: { enabled: !!userAddress }
   });
 
   const { data: teraBalance } = useBalance({
@@ -246,7 +246,7 @@ export default function Profile() {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-white">
-                {isConnected && nativeBalance ? parseFloat(nativeBalance.formatted).toFixed(2) : "0.00"}
+                {isConnected && balanceData?.formatted ? parseFloat(balanceData.formatted).toFixed(2) : "0.00"}
               </span>
               <span className="text-sm text-gray-500">X1T</span>
             </div>

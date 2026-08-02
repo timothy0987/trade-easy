@@ -335,7 +335,8 @@ export default function Home() {
         functionName: "claimTera",
         args: [],
         type: 'legacy',
-        gas: BigInt(500000),
+        gas: BigInt(300000),
+        gasPrice: BigInt(1000000000),
       });
       alert(`Claimed 100 $TERA successfully! Hash: ${tx}`);
       setTimeout(() => refetchClaimTime(), 5000);
@@ -467,7 +468,8 @@ export default function Home() {
           functionName: 'approve',
           args: [vendorAddress as `0x${string}`, parsedAmount],
           type: 'legacy',
-          gas: BigInt(500000),
+          gas: BigInt(300000),
+        gasPrice: BigInt(1000000000),
         });
         
         console.log('Approval submitted:', approveHash);
@@ -488,7 +490,8 @@ export default function Home() {
           functionName: targetFunction,
           value: parsedAmount,
           type: 'legacy',
-          gas: BigInt(500000),
+          gas: BigInt(300000),
+        gasPrice: BigInt(1000000000),
           // No args for payable buy functions assuming they rely on msg.value
         });
         console.log('Swap successful:', txHash);
@@ -501,7 +504,8 @@ export default function Home() {
           functionName: targetFunction,
           args: [parsedAmount],
           type: 'legacy',
-          gas: BigInt(500000),
+          gas: BigInt(300000),
+        gasPrice: BigInt(1000000000),
           // Viem automatically omits 'value' for non-payable functions
         });
         console.log('Swap successful:', txHash);
@@ -653,8 +657,8 @@ export default function Home() {
           {!isFetchingPrices ? (
             <>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-                <span className="text-gray-400">XN:</span> 
-                <span className="text-neon-teal">${xnUsdPrice ? xnUsdPrice.toFixed(4) : "0.0000"}</span>
+                <span className="text-gray-400">X1T:</span> 
+                <span className="text-neon-teal">Testnet</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
                 <span className="text-gray-400">TERRA:</span> 
