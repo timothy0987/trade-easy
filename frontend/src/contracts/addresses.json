@@ -1,12 +1,12 @@
 {
   "network": "horizenTestnet",
   "chainId": 2651420,
-  "_note": "Contract addresses below are stale (from the Hedera/X1 deploy). Re-deploy to Horizen and overwrite.",
-  "TokenCreator": "0x3035e572ecA43a6008d95b11F24CE69CD232d861",
+  "_note": "LIVE on Horizen Testnet (chain 2651420): TokenCreator, PrivateTradingVault + vault stack, ZEN (tZEN). STALE (Hedera/X1 era, not yet redeployed): TradeEasyFactory, TradeEasyRouter, TERA, Faucet, TeraFaucet, USDC, UserProfile, TokenVendor, MockHBAR, WHBAR.",
+  "TokenCreator": "0x91Ada46da7341Bd9A536D2757476BfacB3Fc566D",
   "TradeEasyFactory": "0x1825BD4ef0603B3c0A6800500f6A803EDA6D77a1",
   "TradeEasyRouter": "0x189A3EdFdB31AE76012C89e6d8B09191B68f9D25",
-  "deployer": "0x7cBfF11440099DB224d2B54d12e1116eB565C8FE",
-  "timestamp": "2026-07-14T19:24:07.741Z",
+  "deployer": "0x408DC4477cC9D531d84a37DCf8eb62BDaf58D0C4",
+  "timestamp": "2026-08-29T16:45:59.938Z",
   "MockHBAR": "0xb1F616b8134F602c3Bb465fB5b5e6565cCAd37Ed",
   "TERA": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   "ZEN": "0x7Bb00ada8168E22375341F98232dF28b955E5892",
@@ -16,5 +16,14 @@
   "USDC": "0x0000000000000000000000000000000000919904",
   "UserProfile": "0x9eEAE7DeB8BE1e014B89639022B52cCB5721B40a",
   "WHBAR": "0xb1F616b8134F602c3Bb465fB5b5e6565cCAd37Ed",
-  "TokenVendor": "0xDc9b2c7207E9CA40446be714Fc7E723F7Af646bC"
+  "TokenVendor": "0xDc9b2c7207E9CA40446be714Fc7E723F7Af646bC",
+  "PrivateTradingVault": "0xBBA15fc8B1D3b91BdC24D2f4a307Af3B05D0C2a6",
+  "AgentRegistry": "0xEdaF74C13658c59dEf42dA7869D8271efb5e559d",
+  "VaultOracle": "0x45F01386594d1B257BcE6F09C66543350A12DD4E",
+  "VaultFactory": "0xF30d0a704d3c872F50ED3135B4Ab92f5D6b1Ecc4",
+  "VaultRouter": "0x0aa95F124de079bc7E4b27a428c01632DE107486",
+  "TradeEasyVenueAdapter": "0x12Eb415F7FBf800ea512fc93F3E4AA9CF0b8C9C9",
+  "VaultAsset": "0x4d332dE643537d9A75F447a14eA36607b3dEd7BE",
+  "VaultTradableAsset": "0xe6064A282533C98943De264116001779D6c1E194",
+  "vaultAgent": "0x408DC4477cC9D531d84a37DCf8eb62BDaf58D0C4"
 }
