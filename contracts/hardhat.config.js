@@ -20,6 +20,7 @@ module.exports = {
       url: HORIZEN_TESTNET_RPC_URL,
       chainId: 2651420,
       accounts,
+      timeout: 120000, // Caldera RPC can be slow; don't abort on a slow response
     },
   },
   etherscan: {
