@@ -36,9 +36,9 @@ const HORIZEN_CHAIN_ID = 2651420;
 const EXPLORER = "https://explorer-testnet.horizen.io";
 const A = addresses as Record<string, string>;
 
-// External testnet-funding resources
-const ZEN_FAUCET_URL = "https://hub-testnet.horizen.io/";
-const GAS_BRIDGE_URL = "https://horizen-2-docs.horizen.io/horizen-chain/network/testnet";
+// Horizen Testnet gas is ETH (bridged from Base Sepolia via the hub — no ZEN faucet).
+const TESTNET_HUB_URL = "https://hub-testnet.horizen.io/";
+const TESTNET_DOCS_URL = "https://horizen-2-docs.horizen.io/horizen-chain/network/testnet";
 
 // Native gas sentinel — Horizen's gas token is ETH.
 const NATIVE = "ETH";
@@ -672,24 +672,24 @@ export default function Home() {
 
               <div className="w-full border-t border-[var(--color-border)] pt-4 flex flex-col gap-2 text-left">
                 <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">
-                  Need Horizen testnet funds?
+                  Need gas? Horizen Testnet uses ETH
                 </span>
                 <a
-                  href={ZEN_FAUCET_URL}
+                  href={TESTNET_HUB_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-between text-sm text-[var(--color-hz-navy)] hover:text-[var(--color-hz-gold-deep)] transition-colors"
                 >
-                  Get TestZEN tokens
+                  Bridge ETH via the Horizen hub
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
                 <a
-                  href={GAS_BRIDGE_URL}
+                  href={TESTNET_DOCS_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-between text-sm text-[var(--color-hz-navy)] hover:text-[var(--color-hz-gold-deep)] transition-colors"
                 >
-                  Bridge testnet ETH for gas
+                  Add network &amp; RPC details
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
