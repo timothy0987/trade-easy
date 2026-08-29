@@ -8,6 +8,7 @@
     "test": "hardhat test",
     "deploy:factory": "hardhat run scripts/deployFactory.js --network horizenTestnet",
     "deploy:vault": "hardhat run scripts/deployVault.js --network horizenTestnet",
+    "deploy:all": "npm run deploy:factory && npm run deploy:vault",
     "deploy": "hardhat run scripts/deploy.js --network horizenTestnet"
   },
   "devDependencies": {
