@@ -17,8 +17,8 @@ contract TeraFaucet {
     IERC20 public teraToken;
     address public constant HTS_ADDRESS = address(0x167);
     
-    // 100 TERA (assuming 8 decimals for HTS compatibility)
-    uint256 public constant CLAIM_AMOUNT = 100 * 10**8; 
+    // 100 TERA (TERA is a plain 18-decimal ERC20 on Horizen)
+    uint256 public constant CLAIM_AMOUNT = 100 * 10**18;
     uint256 public constant LOCK_TIME = 24 hours;
 
     mapping(address => uint256) public nextClaimTime;

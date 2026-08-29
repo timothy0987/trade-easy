@@ -227,11 +227,11 @@ export default function TradePage() {
 
       let fn = "";
       if (tokenA === NATIVE && tokenB === tera) fn = "buyTokens";
-      else if (tokenA === tera && tokenB === NATIVE) fn = "sellTerra";
+      else if (tokenA === tera && tokenB === NATIVE) fn = "sellTera";
       else if (tokenA === NATIVE && tokenB === usdc) fn = "buyUsdc";
       else if (tokenA === usdc && tokenB === NATIVE) fn = "sellUsdc";
-      else if (tokenA === tera && tokenB === usdc) fn = "swapTerraForUsdc";
-      else if (tokenA === usdc && tokenB === tera) fn = "swapUsdcForTerra";
+      else if (tokenA === tera && tokenB === usdc) fn = "swapTeraForUsdc";
+      else if (tokenA === usdc && tokenB === tera) fn = "swapUsdcForTera";
       else throw new Error("Unsupported swap route.");
 
       const abi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as { abi: unknown[] }).abi;
@@ -321,10 +321,26 @@ export default function TradePage() {
       });
       showToast(`Claimed 100 TERA: ${tx}`);
       setTimeout(() => refetchClaimTime(), 5000);
+      addTeraToWallet();
     } catch (err) {
       showToast(`Claim failed: ${err instanceof Error ? err.message : err}`);
     } finally {
       setFaucetTx(false);
+    }
+  };
+
+  // EIP-747: ask the wallet to track TERA so the claimed balance shows up.
+  const addTeraToWallet = async () => {
+    if (!A.TERA) return showToast("TERA not deployed on Horizen yet");
+    const eth = (window as unknown as { ethereum?: { request: (a: unknown) => Promise<unknown> } }).ethereum;
+    if (!eth) return showToast("No injected wallet found");
+    try {
+      await eth.request({
+        method: "wallet_watchAsset",
+        params: { type: "ERC20", options: { address: A.TERA, symbol: "TERA", decimals: 18 } },
+      });
+    } catch {
+      /* user dismissed the prompt */
     }
   };
 
@@ -425,6 +441,13 @@ export default function TradePage() {
               >
                 {faucetTx && <Loader2 className="w-4 h-4 animate-spin" />}
                 {faucetTx ? "Claiming…" : "Claim 100 TERA"}
+              </button>
+
+              <button
+                onClick={addTeraToWallet}
+                className="text-xs font-semibold text-[var(--color-hz-blue)] hover:underline flex items-center gap-1"
+              >
+                <Droplets className="w-3 h-3" /> Add TERA to your wallet
               </button>
 
               <div className="w-full border-t border-[var(--color-border)] pt-4 flex flex-col gap-2 text-left">
