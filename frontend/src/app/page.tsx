@@ -63,11 +63,13 @@ function TokenSelector({
   const [open, setOpen] = useState(false);
   const tera = A.TERA;
   const usdc = A.USDC;
+  const zen = A.ZEN;
 
   const isNative = value === NATIVE;
   const isTera = tera && value === tera;
   const isUsdc = usdc && value === usdc;
-  const isCustom = value !== "" && !isNative && !isTera && !isUsdc;
+  const isZen = zen && value === zen;
+  const isCustom = value !== "" && !isNative && !isTera && !isUsdc && !isZen;
 
   const shownLabel = isNative
     ? NATIVE
@@ -75,6 +77,8 @@ function TokenSelector({
     ? "TERA"
     : isUsdc
     ? "USDC"
+    : isZen
+    ? "ZEN"
     : isCustom
     ? `${value.slice(0, 10)}…`
     : placeholder;
@@ -123,6 +127,12 @@ function TokenSelector({
             <Row onClick={() => { onChange(usdc); setOpen(false); }}>
               <span>USDC</span>
               <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-blue)]/12 text-[var(--color-hz-blue)] px-2 py-0.5 rounded-full">Stablecoin</span>
+            </Row>
+          )}
+          {zen && (
+            <Row onClick={() => { onChange(zen); setOpen(false); }}>
+              <span>ZEN</span>
+              <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-green)]/15 text-[var(--color-hz-green)] px-2 py-0.5 rounded-full">Horizen token</span>
             </Row>
           )}
           <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>

@@ -9,6 +9,8 @@
   "timestamp": "2026-07-14T19:24:07.741Z",
   "MockHBAR": "0xb1F616b8134F602c3Bb465fB5b5e6565cCAd37Ed",
   "TERA": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "ZEN": "0x8862f398942e95cf5f6616d7d65b3cb6f7ab4fda",
+  "_zenNote": "Base Sepolia testnet ZEN ERC-20. Verify it is the ZEN used on Horizen Testnet (chain 2651420) before relying on swaps.",
   "Faucet": "0xef0A8Fbe966F1DcBF9D85FBDAB20bc7d63FE372d",
   "TeraFaucet": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
   "USDC": "0x0000000000000000000000000000000000919904",
