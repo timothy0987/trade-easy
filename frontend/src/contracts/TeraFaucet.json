@@ -3,12 +3,37 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_teraToken",
+        "name": "_teraTokenAddress",
         "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "nextClaim",
+        "type": "uint256"
+      }
+    ],
+    "name": "TeraClaimed",
+    "type": "event"
   },
   {
     "inputs": [],
@@ -25,7 +50,20 @@
   },
   {
     "inputs": [],
-    "name": "LOCK_DURATION",
+    "name": "HTS_ADDRESS",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "LOCK_TIME",
     "outputs": [
       {
         "internalType": "uint256",
@@ -34,6 +72,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_token",
+        "type": "address"
+      }
+    ],
+    "name": "associateToken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -67,7 +118,7 @@
     "name": "teraToken",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "contract IERC20",
         "name": "",
         "type": "address"
       }
