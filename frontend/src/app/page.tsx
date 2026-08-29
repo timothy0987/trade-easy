@@ -36,6 +36,10 @@ const HORIZEN_CHAIN_ID = 845320009;
 const EXPLORER = "https://horizen-explorer-testnet.appchain.base.org";
 const A = addresses as Record<string, string>;
 
+// External testnet-funding resources
+const ZEN_FAUCET_URL = "https://blog.horizen.io/how-to-get-testzen/";
+const GAS_BRIDGE_URL = "https://horizen-2-docs.horizen.io/darkswap/how-to-bridge/";
+
 // Native gas sentinel — Horizen's gas token is ETH.
 const NATIVE = "ETH";
 
@@ -665,6 +669,30 @@ export default function Home() {
                 {faucetTx && <Loader2 className="w-4 h-4 animate-spin" />}
                 {faucetTx ? "Claiming…" : "Claim 100 TERA"}
               </button>
+
+              <div className="w-full border-t border-[var(--color-border)] pt-4 flex flex-col gap-2 text-left">
+                <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">
+                  Need Horizen testnet funds?
+                </span>
+                <a
+                  href={ZEN_FAUCET_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between text-sm text-[var(--color-hz-navy)] hover:text-[var(--color-hz-gold-deep)] transition-colors"
+                >
+                  Get TestZEN tokens
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <a
+                  href={GAS_BRIDGE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between text-sm text-[var(--color-hz-navy)] hover:text-[var(--color-hz-gold-deep)] transition-colors"
+                >
+                  Bridge testnet ETH for gas
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
           </div>
         )}
