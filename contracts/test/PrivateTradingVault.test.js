@@ -3,12 +3,20 @@ const { ethers } = require("hardhat");
 
 const WAD = 10n ** 18n;
 
+const ZERO_FEES = {
+  managementFeeBps: 0,
+  performanceFeeBps: 0,
+  stakingFeeShareBps: 0,
+  feeRecipient: ethers.ZeroAddress,
+  stakingPool: ethers.ZeroAddress,
+};
+
 describe("PrivateTradingVault", () => {
-  let owner, agent, alice, bob;
+  let owner, agent, alice, bob, manager, staking;
   let asset, weth, oracle, registry, vault, adapter, router, factory;
 
   beforeEach(async () => {
-    [owner, agent, alice, bob] = await ethers.getSigners();
+    [owner, agent, alice, bob, manager, staking] = await ethers.getSigners();
 
     const MockERC20 = await ethers.getContractFactory("MockERC20");
     asset = await MockERC20.deploy("Vault USD", "vUSD", 18);
@@ -57,7 +65,8 @@ describe("PrivateTradingVault", () => {
         maxDrawdownBps: 1500,
         depositCap: ethers.parseEther("1000000"),
         emergencyGracePeriod: 6 * 3600,
-      }
+      },
+      ZERO_FEES
     );
 
     await vault.setAllowedVenue(await adapter.getAddress(), true);
@@ -200,5 +209,111 @@ describe("PrivateTradingVault", () => {
     const gained = (await asset.balanceOf(alice.address)) - before;
     // ~half the idle pool (alice holds half the shares), all assets are idle here
     expect(gained).to.be.gt(ethers.parseEther("9900"));
+  });
+
+  describe("fees", () => {
+    let feeVault;
+    const YEAR = 365 * 24 * 3600;
+
+    beforeEach(async () => {
+      feeVault = await (await ethers.getContractFactory("PrivateTradingVault")).deploy(
+        await asset.getAddress(),
+        "Fee Vault Share", "fVAULT",
+        owner.address,
+        await registry.getAddress(),
+        await oracle.getAddress(),
+        {
+          maxTradeBps: 2000,
+          maxDeployedBps: 8000,
+          maxDrawdownBps: 1500,
+          depositCap: ethers.parseEther("1000000"),
+          emergencyGracePeriod: 6 * 3600,
+        },
+        {
+          managementFeeBps: 200,       // 2% / year
+          performanceFeeBps: 2000,     // 20% of profit
+          stakingFeeShareBps: 1750,    // 17.5% of every fee -> staking pool
+          feeRecipient: manager.address,
+          stakingPool: staking.address,
+        }
+      );
+      for (const u of [alice, bob]) {
+        await asset.connect(u).approve(await feeVault.getAddress(), ethers.MaxUint256);
+      }
+    });
+
+    it("rejects fee rates above the caps", async () => {
+      await expect(feeVault.setFees(600, 2000, 1750)).to.be.revertedWithCustomError(feeVault, "FeeTooHigh");
+      await expect(feeVault.setFees(200, 3100, 1750)).to.be.revertedWithCustomError(feeVault, "FeeTooHigh");
+      await expect(feeVault.setFees(200, 2000, 10001)).to.be.revertedWithCustomError(feeVault, "FeeTooHigh");
+    });
+
+    it("accrues the management fee over time and splits it manager / staking", async () => {
+      await feeVault.connect(alice).deposit(ethers.parseEther("10000"), alice.address);
+      await ethers.provider.send("evm_increaseTime", [YEAR]);
+      await ethers.provider.send("evm_mine", []);
+
+      await feeVault.accrueFees();
+
+      const mgr = await feeVault.balanceOf(manager.address);
+      const stk = await feeVault.balanceOf(staking.address);
+      const total = mgr + stk;
+      // ~2% of 10k assets => ~204 fee shares (dilution)
+      expect(total).to.be.closeTo(ethers.parseEther("204"), ethers.parseEther("3"));
+      // staking gets 17.5%
+      expect((stk * 10000n) / total).to.be.closeTo(1750n, 20n);
+      // alice's shares now worth ~2% less
+      expect(await feeVault.convertToAssets(await feeVault.balanceOf(alice.address)))
+        .to.be.closeTo(ethers.parseEther("9800"), ethers.parseEther("5"));
+    });
+
+    it("charges the performance fee only on gains above the high-water mark", async () => {
+      await feeVault.connect(alice).deposit(ethers.parseEther("10000"), alice.address);
+
+      // simulate a +20% gain by donating asset into the vault
+      await asset.mint(await feeVault.getAddress(), ethers.parseEther("2000"));
+      expect(await feeVault.pricePerShare()).to.be.closeTo(ethers.parseEther("1.2"), ethers.parseEther("0.001"));
+
+      await feeVault.accrueFees();
+
+      const total = (await feeVault.balanceOf(manager.address)) + (await feeVault.balanceOf(staking.address));
+      // 20% of the 2000 gain = 400 assets => ~345 fee shares against 12000 NAV
+      expect(total).to.be.closeTo(ethers.parseEther("345"), ethers.parseEther("5"));
+      const hwm1 = await feeVault.highWaterPricePerShare();
+      expect(hwm1).to.be.gt(ethers.parseEther("1.15"));
+
+      // second accrual with no further gain -> no *performance* fee recharged
+      // (only a negligible management-fee sliver for the ~1s that elapsed)
+      const totalBefore = await feeVault.totalSupply();
+      await feeVault.accrueFees();
+      const minted2 = (await feeVault.totalSupply()) - totalBefore;
+      expect(minted2).to.be.lt(ethers.parseEther("0.001"));
+      expect(await feeVault.highWaterPricePerShare()).to.equal(hwm1);
+    });
+
+    it("freezes fee accrual during emergency", async () => {
+      await feeVault.connect(alice).deposit(ethers.parseEther("10000"), alice.address);
+      await ethers.provider.send("evm_increaseTime", [24 * 3600 + 6 * 3600 + 1]);
+      await ethers.provider.send("evm_mine", []);
+      await feeVault.connect(bob).declareEmergency();
+
+      const supplyBefore = await feeVault.totalSupply();
+      await ethers.provider.send("evm_increaseTime", [YEAR]);
+      await ethers.provider.send("evm_mine", []);
+      await feeVault.accrueFees();
+      expect(await feeVault.totalSupply()).to.equal(supplyBefore);
+    });
+
+    it("previewAccruedFeeShares matches what accrueFees mints", async () => {
+      await feeVault.connect(alice).deposit(ethers.parseEther("10000"), alice.address);
+      await ethers.provider.send("evm_increaseTime", [YEAR / 2]);
+      await ethers.provider.send("evm_mine", []);
+
+      const preview = await feeVault.previewAccruedFeeShares();
+      const supplyBefore = await feeVault.totalSupply();
+      await feeVault.accrueFees();
+      const minted = (await feeVault.totalSupply()) - supplyBefore;
+      expect(minted).to.be.closeTo(preview, preview / 1000n + 1n);
+    });
   });
 });

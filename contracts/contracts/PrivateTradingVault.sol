@@ -70,6 +70,26 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
     uint256 public emergencyGracePeriod;   // extra time past agent-death before anyone can trip emergency
 
     // ------------------------------------------------------------------
+    // Fees
+    //   management  — annualized on NAV, accrues continuously
+    //   performance — a cut of any gain above the high-water price/share
+    // Both are charged by MINTING shares to the recipients (dilution), settled lazily
+    // on every deposit / withdrawal / redemption settlement / trade, or via accrueFees().
+    // A configurable slice of every accrued fee is routed to `stakingPool` (the ZEN
+    // staking pool) to satisfy the ecosystem-fund fee-share requirement.
+    // ------------------------------------------------------------------
+    uint256 public constant MAX_MANAGEMENT_FEE_BPS = 500;    // 5% / year
+    uint256 public constant MAX_PERFORMANCE_FEE_BPS = 3_000; // 30% of profit
+    uint256 internal constant SECONDS_PER_YEAR = 365 days;
+
+    uint256 public managementFeeBps;   // annualized, on NAV
+    uint256 public performanceFeeBps;  // on gain above highWaterPricePerShare
+    uint256 public stakingFeeShareBps; // portion of every accrued fee routed to stakingPool
+    address public feeRecipient;       // manager fee sink
+    address public stakingPool;        // ZEN staking pool (address(0) => whole fee to feeRecipient)
+    uint256 public lastFeeAccrual;
+
+    // ------------------------------------------------------------------
     // Redemption queue (for withdrawals that exceed idle liquidity)
     // ------------------------------------------------------------------
     struct RedeemRequest {
@@ -105,6 +125,9 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
     event RedeemRequested(uint256 indexed id, address indexed owner, uint256 shares);
     event RedeemProcessed(uint256 indexed id, uint256 assetsOwed);
     event RedeemClaimed(uint256 indexed id, address indexed owner, uint256 assets);
+    event FeesAccrued(uint256 managementAssets, uint256 performanceAssets, uint256 sharesMinted, uint256 sharesToStaking);
+    event FeeConfigSet(uint256 managementFeeBps, uint256 performanceFeeBps, uint256 stakingFeeShareBps);
+    event FeeRecipientsSet(address indexed feeRecipient, address indexed stakingPool);
 
     // ------------------------------------------------------------------
     // Errors
@@ -125,6 +148,8 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
     error NotRequestOwner();
     error NotProcessed();
     error AlreadyClaimed();
+    error FeeTooHigh();
+    error ZeroFeeRecipient();
 
     modifier onlyAgent() {
         if (msg.sender != agentRegistry.agent()) revert NotAgent();
@@ -147,6 +172,14 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         uint256 emergencyGracePeriod;
     }
 
+    struct FeeConfig {
+        uint256 managementFeeBps;
+        uint256 performanceFeeBps;
+        uint256 stakingFeeShareBps;
+        address feeRecipient;
+        address stakingPool;
+    }
+
     constructor(
         IERC20 asset_,
         string memory name_,
@@ -154,7 +187,8 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         address initialOwner,
         IAgentRegistry agentRegistry_,
         IVaultOracle oracle_,
-        MandateConfig memory cfg
+        MandateConfig memory cfg,
+        FeeConfig memory fees
     ) ERC20(name_, symbol_) ERC4626(asset_) Ownable(initialOwner) {
         agentRegistry = agentRegistry_;
         oracle = oracle_;
@@ -165,6 +199,23 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         emergencyGracePeriod = cfg.emergencyGracePeriod;
         highWaterPricePerShare = WAD; // 1 asset : 1 share at genesis
         emit MandateLimitsSet(cfg.maxTradeBps, cfg.maxDeployedBps, cfg.maxDrawdownBps);
+
+        if (
+            fees.managementFeeBps > MAX_MANAGEMENT_FEE_BPS ||
+            fees.performanceFeeBps > MAX_PERFORMANCE_FEE_BPS ||
+            fees.stakingFeeShareBps > BPS
+        ) revert FeeTooHigh();
+        if ((fees.managementFeeBps != 0 || fees.performanceFeeBps != 0) && fees.feeRecipient == address(0)) {
+            revert ZeroFeeRecipient();
+        }
+        managementFeeBps = fees.managementFeeBps;
+        performanceFeeBps = fees.performanceFeeBps;
+        stakingFeeShareBps = fees.stakingFeeShareBps;
+        feeRecipient = fees.feeRecipient;
+        stakingPool = fees.stakingPool;
+        lastFeeAccrual = block.timestamp;
+        emit FeeConfigSet(fees.managementFeeBps, fees.performanceFeeBps, fees.stakingFeeShareBps);
+        emit FeeRecipientsSet(fees.feeRecipient, fees.stakingPool);
     }
 
     // ------------------------------------------------------------------
@@ -204,6 +255,77 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
     }
 
     // ------------------------------------------------------------------
+    // Fees
+    // ------------------------------------------------------------------
+
+    /// @notice Settle accrued management + performance fees by minting shares to the
+    ///         fee recipient(s). Permissionless; also runs on every deposit, withdrawal,
+    ///         redemption settlement and trade.
+    function accrueFees() external {
+        _accrueFees();
+    }
+
+    function _accrueFees() internal {
+        uint256 last = lastFeeAccrual;
+        lastFeeAccrual = block.timestamp;
+        if (emergency) return; // fees freeze once the agent is declared dead
+
+        uint256 supply = totalSupply();
+        if (supply == 0) return;
+        uint256 assets = totalAssets();
+        if (assets == 0) return;
+
+        (uint256 mgmtAssets, uint256 perfAssets) =
+            _pendingFeeAssets(supply, assets, block.timestamp - last);
+        uint256 feeAssets = mgmtAssets + perfAssets;
+        if (feeAssets == 0 || feeAssets >= assets) return;
+
+        // dilution: mint m shares such that  m / (supply + m) == feeAssets / assets
+        uint256 feeShares = (supply * feeAssets) / (assets - feeAssets);
+        if (feeShares == 0) return;
+
+        uint256 toStaking = stakingPool == address(0) ? 0 : (feeShares * stakingFeeShareBps) / BPS;
+        uint256 toManager = feeShares - toStaking;
+        if (toStaking != 0) _mint(stakingPool, toStaking);
+        if (toManager != 0) _mint(feeRecipient, toManager);
+
+        // Bank the performance fee: ratchet the high-water mark to the post-dilution
+        // price so the same gain is never charged twice.
+        _ratchetHighWater();
+
+        emit FeesAccrued(mgmtAssets, perfAssets, feeShares, toStaking);
+    }
+
+    function _pendingFeeAssets(uint256 supply, uint256 assets, uint256 elapsed)
+        internal
+        view
+        returns (uint256 mgmtAssets, uint256 perfAssets)
+    {
+        if (managementFeeBps != 0 && elapsed != 0) {
+            mgmtAssets = (assets * managementFeeBps * elapsed) / (BPS * SECONDS_PER_YEAR);
+        }
+        uint256 pps = (assets * WAD) / supply;
+        if (performanceFeeBps != 0 && pps > highWaterPricePerShare) {
+            uint256 totalGain = ((pps - highWaterPricePerShare) * supply) / WAD;
+            perfAssets = (totalGain * performanceFeeBps) / BPS;
+        }
+    }
+
+    /// @notice Shares that would be minted as fees if settled right now.
+    function previewAccruedFeeShares() external view returns (uint256 feeShares) {
+        if (emergency) return 0;
+        uint256 supply = totalSupply();
+        if (supply == 0) return 0;
+        uint256 assets = totalAssets();
+        if (assets == 0) return 0;
+        (uint256 mgmtAssets, uint256 perfAssets) =
+            _pendingFeeAssets(supply, assets, block.timestamp - lastFeeAccrual);
+        uint256 feeAssets = mgmtAssets + perfAssets;
+        if (feeAssets == 0 || feeAssets >= assets) return 0;
+        feeShares = (supply * feeAssets) / (assets - feeAssets);
+    }
+
+    // ------------------------------------------------------------------
     // Deposit guards
     // ------------------------------------------------------------------
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares)
@@ -231,9 +353,33 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         _ratchetHighWater();
     }
 
+    // ------------------------------------------------------------------
+    // ERC-4626 entrypoints — settle fees before any share/asset conversion
+    // ------------------------------------------------------------------
+    function deposit(uint256 assets, address receiver) public override returns (uint256) {
+        _accrueFees();
+        return super.deposit(assets, receiver);
+    }
+
+    function mint(uint256 shares, address receiver) public override returns (uint256) {
+        _accrueFees();
+        return super.mint(shares, receiver);
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner_) public override returns (uint256) {
+        _accrueFees();
+        return super.withdraw(assets, receiver, owner_);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner_) public override returns (uint256) {
+        _accrueFees();
+        return super.redeem(shares, receiver, owner_);
+    }
+
     /// @notice Queue a redemption for capital the agent currently has deployed.
     ///         Shares are escrowed now; `assetsOwed` is fixed at NAV when processed.
     function requestRedeem(uint256 shares) external nonReentrant returns (uint256 id) {
+        _accrueFees();
         _transfer(msg.sender, address(this), shares); // escrow
         id = redeemRequests.length;
         redeemRequests.push(RedeemRequest({
@@ -249,6 +395,7 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
 
     /// @notice Agent (after unwinding) or owner settles queued redemptions at current NAV.
     function processRedeemRequests(uint256[] calldata ids) external onlyAgentOrOwner nonReentrant {
+        _accrueFees();
         for (uint256 i; i < ids.length; ++i) {
             RedeemRequest storage r = redeemRequests[ids[i]];
             if (r.processed) revert AlreadyProcessed();
@@ -293,6 +440,7 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         if (emergency) revert NotEmergency(); // emergency halts the agent
         if (!agentRegistry.isAgentLive()) revert AgentNotLive();
         if (!isAllowedVenue[venue]) revert VenueNotAllowed(venue);
+        _accrueFees();
         _requireTradableToken(tokenIn);
         _requireTradableToken(tokenOut);
 
@@ -413,6 +561,37 @@ contract PrivateTradingVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
 
     function setDepositCap(uint256 cap) external onlyOwner {
         depositCap = cap;
+    }
+
+    /// @notice Update fee rates. Settles fees at the OLD rates first.
+    function setFees(uint256 managementFeeBps_, uint256 performanceFeeBps_, uint256 stakingFeeShareBps_)
+        external
+        onlyOwner
+    {
+        if (
+            managementFeeBps_ > MAX_MANAGEMENT_FEE_BPS ||
+            performanceFeeBps_ > MAX_PERFORMANCE_FEE_BPS ||
+            stakingFeeShareBps_ > BPS
+        ) revert FeeTooHigh();
+        if ((managementFeeBps_ != 0 || performanceFeeBps_ != 0) && feeRecipient == address(0)) {
+            revert ZeroFeeRecipient();
+        }
+        _accrueFees();
+        managementFeeBps = managementFeeBps_;
+        performanceFeeBps = performanceFeeBps_;
+        stakingFeeShareBps = stakingFeeShareBps_;
+        emit FeeConfigSet(managementFeeBps_, performanceFeeBps_, stakingFeeShareBps_);
+    }
+
+    /// @notice Update the manager fee sink and the ZEN staking pool. Settles fees first.
+    function setFeeRecipients(address feeRecipient_, address stakingPool_) external onlyOwner {
+        if ((managementFeeBps != 0 || performanceFeeBps != 0) && feeRecipient_ == address(0)) {
+            revert ZeroFeeRecipient();
+        }
+        _accrueFees();
+        feeRecipient = feeRecipient_;
+        stakingPool = stakingPool_;
+        emit FeeRecipientsSet(feeRecipient_, stakingPool_);
     }
 
     function setOracle(IVaultOracle oracle_) external onlyOwner {

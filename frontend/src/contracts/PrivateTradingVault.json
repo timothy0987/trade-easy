@@ -62,6 +62,38 @@
         "internalType": "struct PrivateTradingVault.MandateConfig",
         "name": "cfg",
         "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "managementFeeBps",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "performanceFeeBps",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "stakingFeeShareBps",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "feeRecipient",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "stakingPool",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct PrivateTradingVault.FeeConfig",
+        "name": "fees",
+        "type": "tuple"
       }
     ],
     "stateMutability": "nonpayable",
@@ -290,6 +322,11 @@
   },
   {
     "inputs": [],
+    "name": "FeeTooHigh",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotAgent",
     "type": "error"
   },
@@ -422,6 +459,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "ZeroFeeRecipient",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -507,6 +549,81 @@
       }
     ],
     "name": "EmergencyDeclared",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "managementFeeBps",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "performanceFeeBps",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "stakingFeeShareBps",
+        "type": "uint256"
+      }
+    ],
+    "name": "FeeConfigSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "feeRecipient",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "stakingPool",
+        "type": "address"
+      }
+    ],
+    "name": "FeeRecipientsSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "managementAssets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "performanceAssets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "sharesMinted",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "sharesToStaking",
+        "type": "uint256"
+      }
+    ],
+    "name": "FeesAccrued",
     "type": "event"
   },
   {
@@ -812,6 +929,39 @@
   },
   {
     "inputs": [],
+    "name": "MAX_MANAGEMENT_FEE_BPS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_PERFORMANCE_FEE_BPS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "accrueFees",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "agentRegistry",
     "outputs": [
       {
@@ -1114,6 +1264,19 @@
   },
   {
     "inputs": [],
+    "name": "feeRecipient",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "heldTokens",
     "outputs": [
       {
@@ -1171,6 +1334,32 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lastFeeAccrual",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "managementFeeBps",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1375,6 +1564,32 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "performanceFeeBps",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "previewAccruedFeeShares",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "feeShares",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -1503,7 +1718,7 @@
       },
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "owner_",
         "type": "address"
       }
     ],
@@ -1679,6 +1894,47 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "feeRecipient_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "stakingPool_",
+        "type": "address"
+      }
+    ],
+    "name": "setFeeRecipients",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "managementFeeBps_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "performanceFeeBps_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "stakingFeeShareBps_",
+        "type": "uint256"
+      }
+    ],
+    "name": "setFees",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "maxTradeBps_",
         "type": "uint256"
@@ -1723,6 +1979,32 @@
     "name": "setUnwindOnly",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "stakingFeeShareBps",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "stakingPool",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1864,7 +2146,7 @@
       },
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "owner_",
         "type": "address"
       }
     ],

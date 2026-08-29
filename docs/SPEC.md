@@ -27,6 +27,19 @@ front-runnable at M2 via committed NAV + zkVerify proofs.
 - `maxDrawdownBps` — drop from high-water price/share that latches `unwindOnly` (default 15%)
 - `depositCap`, `emergencyGracePeriod`
 
+## Fees
+
+Charged by **minting shares** to the recipients (dilution), settled lazily on every
+deposit / withdrawal / redemption settlement / trade, or via `accrueFees()`.
+
+- `managementFeeBps` — annualized on NAV (cap 5%/yr, default 2%)
+- `performanceFeeBps` — cut of any gain above `highWaterPricePerShare` (cap 30%, default 20%);
+  the HWM ratchets on accrual so the same gain is never charged twice
+- `stakingFeeShareBps` — slice of **every** accrued fee routed to `stakingPool` (the ZEN
+  staking pool), for the M3 fee-share requirement (default 17.5%); rest goes to `feeRecipient`
+- Accrual **freezes** while `emergency` is latched
+- `previewAccruedFeeShares()` — view of what would be minted right now
+
 ## Agent lifecycle
 
 1. Enclave boots, produces a Vela attestation. Governance posts its hash + URI via
@@ -51,12 +64,11 @@ front-runnable at M2 via committed NAV + zkVerify proofs.
 | --- | --- |
 | **M1** | Strategy runs in the enclave: params, signal thresholds, sizing, and timing are never on-chain or in any server the operator controls. `strategyTag` per trade is an opaque label. |
 | **M2** | `SolvencyVerifier` consumes zkVerify receipts: prove `Σshares · NAV == assets`, solvency, and per-trade mandate compliance **without revealing positions**. Depositor ledger shielded. `strategyTag` becomes a commitment to the encrypted rationale. Fills route through `DarkSwapVenueAdapter` (hidden size/price, MEV-proof). |
-| **M3** | Mainnet; usage metrics; 15–20% of fees to the ZEN staking pool. |
+| **M3** | Mainnet; usage metrics; fee-share to the ZEN staking pool (`stakingFeeShareBps`, wired now, default 17.5%). |
 
 ## What's explicitly NOT done in this scaffold
 
 - Real oracle (uses `MockOracle`) — M1 task: TWAP over the AMM or a Horizen feed.
-- No performance/management fee logic yet.
 - No per-depositor compliance gate (PureFi hook) — placeholder only.
 - Privacy is roadmap, not yet implemented — M1 demo shows enclave-run strategy, not shielded state.
 - `page.tsx` (mint/swap UI) still needs replacing with depositor + manager views.

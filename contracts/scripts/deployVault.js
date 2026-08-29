@@ -101,6 +101,13 @@ async function main() {
     depositCap: hre.ethers.parseEther("1000000"),
     emergencyGracePeriod: 6 * 60 * 60,
   };
+  const fees = {
+    managementFeeBps: 200,    // 2% / year on NAV
+    performanceFeeBps: 2000,  // 20% of gains above the high-water mark
+    stakingFeeShareBps: 1750, // 17.5% of every accrued fee -> ZEN staking pool
+    feeRecipient: deployer.address,
+    stakingPool: hre.ethers.ZeroAddress, // set via setFeeRecipients once the pool exists
+  };
   const vault = await deploy("PrivateTradingVault", [
     assetAddr,
     "Private Trading Vault Share",
@@ -109,6 +116,7 @@ async function main() {
     await registry.getAddress(),
     await oracle.getAddress(),
     mandate,
+    fees,
   ]);
 
   // 6. Wire the mandate
