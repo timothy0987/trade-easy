@@ -2,13 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
-import { useAccount, useBalance, useReadContract, useReadContracts } from "wagmi";
+import { useAccount, useBalance, useReadContracts } from "wagmi";
 import { formatUnits, type Abi } from "viem";
 import { Vault, ArrowLeftRight, User, ExternalLink, Wallet, Coins } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
-import TokenCreatorAbi from "@/contracts/TokenCreator.json";
 
 const A = addresses as Record<string, string>;
 const EXPLORER = "https://explorer-testnet.horizen.io";
@@ -103,36 +102,12 @@ function Balances({ address }: { address: `0x${string}` }) {
   ]);
   const { data: known } = useReadContracts({ contracts: knownCalls as never[], query: { refetchInterval: 12_000 } });
 
-  const { data: created } = useReadContract({
-    address: A.TokenCreator as `0x${string}`,
-    abi: TokenCreatorAbi,
-    functionName: "getUserTokens",
-    args: [address],
-    query: { enabled: isAddr(A.TokenCreator), refetchInterval: 30_000 },
+  const knownRows = KNOWN.map(([addr, fallback], i) => {
+    const bal = known?.[i * 3]?.result as bigint | undefined;
+    const sym = (known?.[i * 3 + 1]?.result as string | undefined) ?? fallback;
+    const dec = Number((known?.[i * 3 + 2]?.result as number | undefined) ?? 18);
+    return { addr, sym, bal, dec };
   });
-  const createdList = ((created as string[] | undefined) ?? []).filter(
-    (t) => isAddr(t) && !KNOWN.some(([a]) => a.toLowerCase() === t.toLowerCase())
-  );
-  const createdCalls = createdList.flatMap((addr) => [
-    { address: addr as `0x${string}`, abi: ERC20_ABI, functionName: "balanceOf", args: [address] },
-    { address: addr as `0x${string}`, abi: ERC20_ABI, functionName: "symbol" },
-    { address: addr as `0x${string}`, abi: ERC20_ABI, functionName: "decimals" },
-  ]);
-  const { data: createdBal } = useReadContracts({
-    contracts: createdCalls as never[],
-    query: { enabled: createdCalls.length > 0, refetchInterval: 30_000 },
-  });
-
-  const rows = (base: [string, string][], data: readonly { result?: unknown }[] | undefined) =>
-    base.map(([addr, fallback], i) => {
-      const bal = data?.[i * 3]?.result as bigint | undefined;
-      const sym = (data?.[i * 3 + 1]?.result as string | undefined) ?? fallback;
-      const dec = Number((data?.[i * 3 + 2]?.result as number | undefined) ?? 18);
-      return { addr, sym, bal, dec };
-    });
-
-  const knownRows = rows(KNOWN, known);
-  const createdRows = rows(createdList.map((a) => [a, "TOKEN"] as [string, string]), createdBal);
 
   return (
     <>
@@ -161,11 +136,6 @@ function Balances({ address }: { address: `0x${string}` }) {
           <Coins className="w-5 h-5 text-[var(--color-hz-gold-deep)]" /> Token balances
         </h3>
         <TokenTable rows={knownRows} empty="No known tokens configured." />
-      </div>
-
-      <div className="card p-6">
-        <h3 className="font-bold mb-3">Tokens you deployed</h3>
-        <TokenTable rows={createdRows} empty="None deployed via the factory." />
       </div>
     </>
   );
