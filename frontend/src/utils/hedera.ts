@@ -1,11 +1,6 @@
-export const fetchX1AccountId = async (evmAddress: string): Promise<string | null> => {
-  try {
-    const res = await fetch(`https://testnet.mirrornode.x1ecochain.com/api/v1/accounts/${evmAddress}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.account || null;
-  } catch (err) {
-    console.error("Failed to fetch X1 EcoChain Account ID:", err);
-    return null;
-  }
-};
+/**
+ * Legacy shim. Horizen is a plain EVM chain with no account-alias / mirror-node
+ * lookup, so there is nothing to resolve — callers fall back to the raw address.
+ * Kept only so existing imports keep resolving; delete once /profile is migrated.
+ */
+export const fetchX1AccountId = async (_evmAddress: string): Promise<string | null> => null;

@@ -2,799 +2,733 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { CustomConnectButton } from "@/components/CustomConnectButton";
-import { 
-  useAccount, 
-  useWriteContract, 
+import {
+  useAccount,
+  useWriteContract,
   useReadContract,
   usePublicClient,
   useWalletClient,
-  useSwitchChain
+  useSwitchChain,
 } from "wagmi";
-import { parseEther, formatEther, encodeFunctionData, toHex, getAddress, erc20Abi } from "viem";
-import { 
-  Coins, 
-  ArrowLeftRight, 
-  Bot, 
-  ChevronRight, 
-  Plus, 
-  Sparkles, 
-  Cpu, 
-  ShieldAlert, 
-  CheckCircle2, 
+import { parseEther, encodeFunctionData, toHex, erc20Abi } from "viem";
+import {
+  Coins,
+  ArrowLeftRight,
+  Bot,
+  ChevronRight,
+  Cpu,
+  ShieldCheck,
+  CheckCircle2,
   Loader2,
   ExternalLink,
-  User
+  User,
+  Droplets,
 } from "lucide-react";
 
+import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
 import TokenCreatorAbi from "@/contracts/TokenCreator.json";
 import TokenVendorAbi from "@/contracts/TokenVendor.json";
 import TeraFaucetAbi from "@/contracts/TeraFaucet.json";
 
-const HTS_PRECOMPILE = "0x0000000000000000000000000000000000000167";
-const HTS_ABI = [
-  {
-    "inputs": [
-      { "name": "account", "type": "address" },
-      { "name": "token", "type": "address" }
-    ],
-    "name": "isAssociated",
-    "outputs": [
-      { "name": "responseCode", "type": "int256" },
-      { "name": "associated", "type": "bool" }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "name": "account", "type": "address" },
-      { "name": "token", "type": "address" }
-    ],
-    "name": "associateToken",
-    "outputs": [
-      { "name": "responseCode", "type": "int256" }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-] as const;
+const HORIZEN_CHAIN_ID = 845320009;
+const EXPLORER = "https://horizen-explorer-testnet.appchain.base.org";
+const A = addresses as Record<string, string>;
 
-const TokenSelector = ({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder: string }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [customToken, setCustomToken] = useState("");
-  const terraAddress = (addresses as any).TERA;
-  const usdcAddress = (addresses as any).USDC;
-  const isXn = value === "XN";
-  const isTerra = terraAddress && value === terraAddress;
-  const isUsdc = usdcAddress && value === usdcAddress;
-  const isCustom = value !== "" && !isXn && !isTerra && !isUsdc;
+// Native gas sentinel — Horizen's gas token is ETH.
+const NATIVE = "ETH";
+
+type TabKey = "swap" | "agent" | "faucet" | "mint";
+
+/* ------------------------------------------------------------------ */
+/*  Token selector                                                     */
+/* ------------------------------------------------------------------ */
+
+function TokenSelector({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const tera = A.TERA;
+  const usdc = A.USDC;
+
+  const isNative = value === NATIVE;
+  const isTera = tera && value === tera;
+  const isUsdc = usdc && value === usdc;
+  const isCustom = value !== "" && !isNative && !isTera && !isUsdc;
+
+  const shownLabel = isNative
+    ? NATIVE
+    : isTera
+    ? "TERA"
+    : isUsdc
+    ? "USDC"
+    : isCustom
+    ? `${value.slice(0, 10)}…`
+    : placeholder;
+
+  const Row = ({
+    onClick,
+    children,
+  }: {
+    onClick: () => void;
+    children: React.ReactNode;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full px-4 py-3 text-left text-sm text-[var(--color-ink)] hover:bg-[var(--color-surface-2)] flex items-center justify-between border-t border-[var(--color-border)] first:border-t-0 transition-colors"
+    >
+      {children}
+    </button>
+  );
 
   return (
     <div className="flex flex-col gap-1.5 relative">
-      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</label>
-      <div 
-        className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus-within:border-neon-teal/50 transition-all cursor-pointer flex justify-between items-center group hover:shadow-[0_0_15px_rgba(45,212,191,0.2)] hover:border-neon-teal/40"
-        onClick={() => setIsOpen(!isOpen)}
+      <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">{label}</label>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="field flex justify-between items-center cursor-pointer"
       >
-        <span className="text-white text-sm truncate pr-2">
-          {isXn ? "XN" : isTerra ? "TERRA" : isUsdc ? "USDC" : isCustom ? value : placeholder}
-        </span>
-        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-300 flex-shrink-0 ${isOpen ? "rotate-90" : ""}`} />
-      </div>
+        <span className="truncate pr-2">{shownLabel}</span>
+        <ChevronRight className={`w-4 h-4 text-[var(--color-ink-3)] transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
 
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[#0B0C10] border border-white/10 rounded-xl overflow-hidden z-50 animate-fadeIn shadow-2xl">
-          <div 
-            className="px-4 py-3 hover:bg-neon-teal/10 hover:text-neon-teal cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group"
-            onClick={() => { onChange("XN"); setIsOpen(false); }}
-          >
-            XN
-          </div>
-          {terraAddress && (
-            <div 
-              className="px-4 py-3 hover:bg-neon-purple/10 hover:text-neon-purple cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group border-t border-white/5"
-              onClick={() => { onChange(terraAddress); setIsOpen(false); }}
-            >
-              TERRA 
-              <span className="text-[10px] uppercase tracking-wider bg-neon-purple/20 text-neon-purple px-2 py-0.5 rounded-full border border-neon-purple/30 text-glow-purple shadow-[0_0_10px_rgba(168,85,247,0.5)]">Native Token</span>
-            </div>
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[var(--color-border)] rounded-xl overflow-hidden z-50 animate-fadeIn shadow-xl">
+          <Row onClick={() => { onChange(NATIVE); setOpen(false); }}>
+            <span>{NATIVE}</span>
+            <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-navy)]/10 text-[var(--color-hz-navy)] px-2 py-0.5 rounded-full">Gas token</span>
+          </Row>
+          {tera && (
+            <Row onClick={() => { onChange(tera); setOpen(false); }}>
+              <span>TERA</span>
+              <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-gold)]/25 text-[var(--color-hz-gold-deep)] px-2 py-0.5 rounded-full">Project token</span>
+            </Row>
           )}
-          {usdcAddress && (
-            <div 
-              className="px-4 py-3 hover:bg-blue-500/10 hover:text-blue-400 cursor-pointer transition-colors text-sm text-gray-300 flex items-center justify-between group border-t border-white/5"
-              onClick={() => { onChange(usdcAddress); setIsOpen(false); }}
-            >
-              USDC 
-              <span className="text-[10px] uppercase tracking-wider bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.5)]">Stablecoin</span>
-            </div>
+          {usdc && (
+            <Row onClick={() => { onChange(usdc); setOpen(false); }}>
+              <span>USDC</span>
+              <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-blue)]/12 text-[var(--color-hz-blue)] px-2 py-0.5 rounded-full">Stablecoin</span>
+            </Row>
           )}
-          <div 
-            className="px-4 py-3 hover:bg-white/5 cursor-pointer transition-colors text-sm text-gray-300 flex flex-col gap-2 border-t border-white/5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className="text-gray-400">Custom Token</span>
-            <input 
-              type="text" 
-              placeholder="Paste Address 0x..." 
-              className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-neon-teal/50"
-              value={isCustom ? value : customToken}
-              onChange={(e) => {
-                setCustomToken(e.target.value);
-                onChange(e.target.value);
-              }}
+          <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+            <span className="text-xs text-[var(--color-ink-3)]">Custom token</span>
+            <input
+              className="field text-xs"
+              placeholder="Paste address 0x…"
+              value={isCustom ? value : ""}
+              onChange={(e) => onChange(e.target.value)}
             />
           </div>
         </div>
       )}
     </div>
   );
-};
+}
+
+/* ------------------------------------------------------------------ */
+/*  Nav                                                                */
+/* ------------------------------------------------------------------ */
+
+function NavTab({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
+        active
+          ? "bg-[var(--color-hz-gold)]/20 text-[var(--color-hz-navy)]"
+          : "text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"
+      }`}
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"mint" | "swap" | "agent" | "faucet">("mint");
-  const { address: userAddress, isConnected, chainId } = useAccount();
+  const [tab, setTab] = useState<TabKey>("swap");
+  const { address, isConnected, chainId } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
 
-  // --- TICKER STATE ---
-  const [xnUsdPrice, setXnUsdPrice] = useState<number | null>(null);
-  const [terraUsdPrice, setTerraUsdPrice] = useState<number | null>(null);
-  const [isFetchingPrices, setIsFetchingPrices] = useState(true);
-  const [pricePulse, setPricePulse] = useState(false);
-  const TERRA_PER_XN = 100;
+  const [toast, setToast] = useState("");
+  const showToast = (m: string) => {
+    setToast(m);
+    setTimeout(() => setToast(""), 5000);
+  };
 
-  useEffect(() => {
-    const fetchPrice = async () => {
-      try {
-        const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=xn,terraport&vs_currencies=usd");
-        const data = await res.json();
-        
-        try {
-          const xnPrice = data["xn"]?.usd;
-          const terraPrice = data["terraport"]?.usd;
-          if (xnPrice) setXnUsdPrice(xnPrice);
-          if (terraPrice) setTerraUsdPrice(terraPrice);
-        } catch(e) {}
-        
-        setIsFetchingPrices(false);
-        setPricePulse(true);
-        setTimeout(() => setPricePulse(false), 1000);
-      } catch (err) {
-        console.error("Failed to fetch prices:", err);
-        setIsFetchingPrices(false);
-      }
-    };
+  const ensureHorizen = async () => {
+    if (chainId !== HORIZEN_CHAIN_ID) {
+      await switchChainAsync({ chainId: HORIZEN_CHAIN_ID });
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  };
 
-    fetchPrice();
-    const interval = setInterval(fetchPrice, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // --- MINT STATE ---
+  /* -------- Mint -------- */
   const [tokenName, setTokenName] = useState("");
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [tokenDecimals, setTokenDecimals] = useState("18");
   const [initialSupply, setInitialSupply] = useState("");
-  const [creationFeeHbar, setCreationFeeHbar] = useState("25"); // X1 fee for HTS token creation
+  const [creationFee, setCreationFee] = useState("0");
   const [mintingTx, setMintingTx] = useState(false);
   const [userTokenList, setUserTokenList] = useState<string[]>([]);
 
-  // --- SWAP STATE ---
-  const [tokenA, setTokenA] = useState("XN");
-  const [tokenB, setTokenB] = useState("");
-  const [swapAmountIn, setSwapAmountIn] = useState("");
-  const [isSwapping, setIsSwapping] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 5000);
-  };
-
-  // --- AI AGENT STATE ---
-  const [agentInput, setAgentInput] = useState("");
-  const [agentSelectedToken, setAgentSelectedToken] = useState("");
-  const [agentStatus, setAgentStatus] = useState<"idle" | "thinking" | "done" | "rejected">("idle");
-  const [agentLogs, setAgentLogs] = useState<Array<{ type: "user" | "agent" | "system" | "error"; text: string; hash?: string }>>([
-    { type: "agent", text: "System Online. Secure policy enforcement active: Max limit 100 X1 / 1000 tokens. Deployed address allow-list active. How can I assist you on X1 EcoChain TestNet today?" }
-  ]);
-
-  // --- FAUCET STATE ---
-  const [faucetClaimTx, setFaucetClaimTx] = useState(false);
-  const [nextClaimTime, setNextClaimTime] = useState<number | null>(null);
-  const [countdownStr, setCountdownStr] = useState<string>("");
-
-  // --- ASSOCIATION STATE ---
-  const [isTokenAssociated, setIsTokenAssociated] = useState<boolean>(false);
-  const [isAssociating, setIsAssociating] = useState(false);
-
-  // Check association
-  const { data: assocData, isError: isAssocError } = useReadContract({
-    address: HTS_PRECOMPILE as `0x${string}`,
-    abi: HTS_ABI,
-    functionName: "isAssociated",
-    args: userAddress && addresses.TERA ? [userAddress, addresses.TERA as `0x${string}`] : undefined,
-    query: {
-      enabled: !!userAddress && !!addresses.TERA,
-      retry: false
-    }
-  });
-
-  useEffect(() => {
-    if (assocData) {
-      setIsTokenAssociated(assocData[1] as boolean);
-    } else if (isAssocError) {
-      // Fallback for demo if not HTS token
-      const mocked = localStorage.getItem(`mock_associated_${userAddress}`);
-      setIsTokenAssociated(mocked === "true");
-    }
-  }, [assocData, isAssocError, userAddress]);
-
-  const handleAssociate = async () => {
-    if (!isConnected) return alert("Please connect your wallet");
-    setIsAssociating(true);
-    try {
-      const tx = await writeContractAsync({
-        address: HTS_PRECOMPILE as `0x${string}`,
-        abi: HTS_ABI,
-        functionName: "associateToken",
-        args: [userAddress, addresses.TERA as `0x${string}`]
-      });
-      alert(`Association transaction submitted! Hash: ${tx}`);
-      localStorage.setItem(`mock_associated_${userAddress}`, "true");
-      setIsTokenAssociated(true);
-    } catch(err: any) {
-      console.error(err);
-      // Fallback if real call fails (e.g. EVM ERC20 token instead of HTS)
-      alert(`Association simulated (or failed): ${err.message || err}`);
-      localStorage.setItem(`mock_associated_${userAddress}`, "true");
-      setIsTokenAssociated(true);
-    } finally {
-      setIsAssociating(false);
-    }
-  };
-
-  // Read next claim time
-  const { data: claimTimeData, refetch: refetchClaimTime, isError, error } = useReadContract({
-    address: addresses.TeraFaucet as `0x${string}`,
-    abi: TeraFaucetAbi,
-    functionName: "nextClaimTime",
-    args: userAddress ? [userAddress] : undefined,
-    query: {
-      enabled: !!userAddress,
-      retry: false
-    }
-  });
-
-  useEffect(() => {
-    try {
-      if (isError) {
-        console.error("Error reading Faucet contract:", error);
-        setNextClaimTime(0);
-        return;
-      }
-      if (claimTimeData !== undefined) {
-        setNextClaimTime(Number(claimTimeData));
-      }
-    } catch (e) {
-      console.error("Try/Catch Faucet error:", e);
-      setNextClaimTime(0);
-    }
-  }, [claimTimeData, isError, error]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (nextClaimTime === null) return;
-      if (nextClaimTime === 0) {
-        setCountdownStr("Ready to Claim");
-        return;
-      }
-      const now = Math.floor(Date.now() / 1000);
-      if (now >= nextClaimTime) {
-        setCountdownStr("Ready to Claim");
-      } else {
-        const diff = nextClaimTime - now;
-        const h = Math.floor(diff / 3600);
-        const m = Math.floor((diff % 3600) / 60);
-        const s = diff % 60;
-        setCountdownStr(`${h}h ${m}m ${s}s`);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [nextClaimTime]);
-
-  const handleClaimFaucet = async () => {
-    if (!isConnected) return alert("Please connect your wallet");
-
-    // PRE-FLIGHT CHECK: ENFORCE X1 TESTNET
-    if (chainId !== 204005) {
-      console.log('Wallet is on wrong network. Prompting switch to 204005...');
-      try {
-        await switchChainAsync({ chainId: 204005 });
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      } catch (switchError) {
-        console.error('Failed to switch network:', switchError);
-        throw new Error('Please switch your wallet to the X1 Testnet to continue.');
-      }
-    }
-
-    if (!addresses.TeraFaucet || addresses.TeraFaucet === '0x0000000000000000000000000000000000000000') {
-      throw new Error("Faucet contract not deployed on X1 Testnet yet.");
-    }
-
-    setFaucetClaimTx(true);
-    try {
-      const tx = await writeContractAsync({
-        address: addresses.TeraFaucet as `0x${string}`,
-        abi: TeraFaucetAbi,
-        functionName: "claimTera",
-        args: [],
-        type: 'legacy',
-        gas: BigInt(300000),
-        gasPrice: BigInt(1000000000),
-      });
-      alert(`Claimed 100 $TERA successfully! Hash: ${tx}`);
-      setTimeout(() => refetchClaimTime(), 5000);
-    } catch(err: any) {
-      console.error(err);
-      alert(`Claim failed: ${err.message || err}`);
-    } finally {
-      setFaucetClaimTx(false);
-    }
-  };
-
-  // Read user created tokens
   const { data: createdTokens, refetch: refetchTokens } = useReadContract({
-    address: addresses.TokenCreator as `0x${string}`,
+    address: A.TokenCreator as `0x${string}`,
     abi: TokenCreatorAbi,
     functionName: "getUserTokens",
-    args: userAddress ? [userAddress] : undefined,
-    query: {
-      enabled: !!userAddress
-    }
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!A.TokenCreator },
   });
-
   useEffect(() => {
-    if (createdTokens) {
-      setUserTokenList(createdTokens as string[]);
-    }
+    if (createdTokens) setUserTokenList(createdTokens as string[]);
   }, [createdTokens]);
 
-  // --- MINT SUBMIT ---
-  const handleMintToken = async (e: React.FormEvent) => {
+  const handleMint = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isConnected) return alert("Please connect your wallet first");
-    if (!tokenName || !tokenSymbol || !initialSupply) return alert("All fields are required");
-
+    if (!isConnected) return showToast("Connect your wallet first");
+    if (!tokenName || !tokenSymbol || !initialSupply) return showToast("All fields are required");
     setMintingTx(true);
     try {
-      if (!(addresses as any).TokenCreator) throw new Error('TokenCreator address is missing from addresses.json');
-      if (!walletClient) throw new Error('Wallet client not found');
-
-      if (chainId !== 296) {
-        try {
-          await switchChainAsync({ chainId: 296 });
-        } catch (switchError) {
-          console.error('Failed to switch network:', switchError);
-          throw new Error('Please switch your wallet to the X1 EcoChain Testnet to continue.');
-        }
-      }
-
+      if (!A.TokenCreator) throw new Error("Token factory address missing from addresses.json");
+      if (!walletClient) throw new Error("Wallet client not found");
+      await ensureHorizen();
       const tx = await walletClient.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: userAddress,
-          to: (addresses as any).TokenCreator,
-          data: encodeFunctionData({ 
-            abi: TokenCreatorAbi, 
-            functionName: 'createToken', 
-            args: [tokenName, tokenSymbol, BigInt(initialSupply), parseInt(tokenDecimals)] 
-          }),
-          value: toHex(parseEther(creationFeeHbar.toString())) 
-        }]
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: A.TokenCreator as `0x${string}`,
+            data: encodeFunctionData({
+              abi: TokenCreatorAbi,
+              functionName: "createToken",
+              args: [tokenName, tokenSymbol, BigInt(initialSupply), parseInt(tokenDecimals)],
+            }),
+            value: toHex(parseEther(creationFee || "0")),
+          },
+        ],
       });
-
-      alert(`HTS Token Creation transaction submitted! Hash: ${tx}`);
+      showToast(`Token creation submitted: ${tx}`);
       setTokenName("");
       setTokenSymbol("");
       setInitialSupply("");
       setTimeout(() => refetchTokens(), 5000);
-    } catch (err: any) {
-      console.error('Transaction Failed:', err);
-      alert(`HTS Token Creation failed: ${err.message || err}`);
+    } catch (err) {
+      showToast(`Token creation failed: ${err instanceof Error ? err.message : err}`);
     } finally {
       setMintingTx(false);
     }
   };
 
-  // --- SWAP SUBMIT ---
+  /* -------- Swap -------- */
+  const [tokenA, setTokenA] = useState(NATIVE);
+  const [tokenB, setTokenB] = useState("");
+  const [swapAmountIn, setSwapAmountIn] = useState("");
+  const [isSwapping, setIsSwapping] = useState(false);
+
   const handleSwap = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isConnected) return showToast("Please connect your wallet");
-    if (!tokenA || !tokenB || !swapAmountIn) return showToast("Please fill all fields");
-    if (!walletClient) throw new Error('No wallet connected');
-    if (!userAddress) return showToast("User address missing");
-    if (!publicClient) throw new Error('No public client found');
+    if (!isConnected) return showToast("Connect your wallet");
+    if (!tokenA || !tokenB || !swapAmountIn) return showToast("Fill in every field");
+    if (!walletClient || !address || !publicClient) return showToast("Wallet not ready");
 
-    const vendorAddress = (addresses as any).TokenVendor;
-    const terraAddress = (addresses as any).TERRA;
-    const usdcAddress = (addresses as any).USDC;
-
-    if (!vendorAddress) throw new Error('TokenVendor address is missing from addresses.json');
+    const vendor = A.TokenVendor;
+    const tera = A.TERA;
+    const usdc = A.USDC;
+    if (!vendor) return showToast("TokenVendor address missing from addresses.json");
 
     setIsSwapping(true);
     try {
-      const parsedAmountIn = parseEther(swapAmountIn);
-      
-      // PRE-FLIGHT CHECK: ENFORCE X1 TESTNET
-      if (chainId !== 204005) {
-        console.log('Wallet is on wrong network. Prompting switch to 204005...');
-        try {
-          await switchChainAsync({ chainId: 204005 });
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } catch (switchError) {
-          console.error('Failed to switch network:', switchError);
-          throw new Error('Please switch your wallet to the X1 Testnet to continue.');
-        }
-      }
+      const amount = parseEther(swapAmountIn);
+      await ensureHorizen();
 
-      // Determine target function
-      let targetFunction = "";
-      if (tokenA === "XN" && tokenB === terraAddress) targetFunction = "buyTokens";
-      else if (tokenA === terraAddress && tokenB === "XN") targetFunction = "sellTerra";
-      else if (tokenA === "XN" && tokenB === usdcAddress) targetFunction = "buyUsdc";
-      else if (tokenA === usdcAddress && tokenB === "XN") targetFunction = "sellUsdc";
-      else if (tokenA === terraAddress && tokenB === usdcAddress) targetFunction = "swapTerraForUsdc";
-      else if (tokenA === usdcAddress && tokenB === terraAddress) targetFunction = "swapUsdcForTerra";
+      let fn = "";
+      if (tokenA === NATIVE && tokenB === tera) fn = "buyTokens";
+      else if (tokenA === tera && tokenB === NATIVE) fn = "sellTerra";
+      else if (tokenA === NATIVE && tokenB === usdc) fn = "buyUsdc";
+      else if (tokenA === usdc && tokenB === NATIVE) fn = "sellUsdc";
+      else if (tokenA === tera && tokenB === usdc) fn = "swapTerraForUsdc";
+      else if (tokenA === usdc && tokenB === tera) fn = "swapUsdcForTerra";
       else throw new Error("Unsupported swap route.");
 
-      // STEP 1: ERC-20 APPROVAL (ONLY IF SENDING TOKENS)
-      const parsedAmount = parseEther(swapAmountIn.toString());
-      const contractAbi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as any).abi;
+      const abi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as { abi: unknown[] }).abi;
 
-      if (tokenA !== "XN") {
-        const tokenAddress = tokenA === terraAddress ? terraAddress : usdcAddress;
-        
-        console.log(`Requesting approval for ${tokenA}...`);
-        const approveHash = await walletClient.writeContract({
-          account: userAddress as `0x${string}`,
-          address: tokenAddress as `0x${string}`,
+      if (tokenA !== NATIVE) {
+        const tokenAddr = tokenA === tera ? tera : usdc;
+        await walletClient.writeContract({
+          account: address as `0x${string}`,
+          address: tokenAddr as `0x${string}`,
           abi: erc20Abi,
-          functionName: 'approve',
-          args: [vendorAddress as `0x${string}`, parsedAmount],
-          type: 'legacy',
-          gas: BigInt(300000),
-        gasPrice: BigInt(1000000000),
+          functionName: "approve",
+          args: [vendor as `0x${string}`, amount],
         });
-        
-        console.log('Approval submitted:', approveHash);
-        console.log('Waiting for X1 EcoChain network to process approval...');
-        await new Promise(resolve => setTimeout(resolve, 7000)); // 7-second buffer for X1 EcoChain consensus
+        await new Promise((r) => setTimeout(r, 4000));
       }
 
-      // STEP 2: THE ACTUAL SWAP
-      console.log(`Executing swap: ${targetFunction}...`);
-      let txHash;
-
-      if (tokenA === "XN") {
-        // Payable Route (XN to Token)
+      let txHash: `0x${string}`;
+      if (tokenA === NATIVE) {
         txHash = await walletClient.writeContract({
-          account: userAddress as `0x${string}`,
-          address: vendorAddress as `0x${string}`,
-          abi: contractAbi,
-          functionName: targetFunction,
-          value: parsedAmount,
-          type: 'legacy',
-          gas: BigInt(300000),
-        gasPrice: BigInt(1000000000),
-          // No args for payable buy functions assuming they rely on msg.value
+          account: address as `0x${string}`,
+          address: vendor as `0x${string}`,
+          abi: abi as never,
+          functionName: fn as never,
+          value: amount,
         });
-        console.log('Swap successful:', txHash);
       } else {
-        // Non-Payable Route (Token to XN/Token)
         txHash = await walletClient.writeContract({
-          account: userAddress as `0x${string}`,
-          address: vendorAddress as `0x${string}`,
-          abi: contractAbi,
-          functionName: targetFunction,
-          args: [parsedAmount],
-          type: 'legacy',
-          gas: BigInt(300000),
-        gasPrice: BigInt(1000000000),
-          // Viem automatically omits 'value' for non-payable functions
+          account: address as `0x${string}`,
+          address: vendor as `0x${string}`,
+          abi: abi as never,
+          functionName: fn as never,
+          args: [amount] as never,
         });
-        console.log('Swap successful:', txHash);
       }
 
-      showToast(`Swap completed successfully! Hash: ${txHash}`);
+      showToast(`Swap submitted: ${txHash}`);
       setSwapAmountIn("");
-    } catch (err: any) {
-      console.error('Transaction Failed:', err);
-      if (err.message?.includes("User rejected") || err.message?.includes("User denied") || err.code === 4001 || err.message?.includes("4001")) {
-        showToast("Transaction rejected by user.");
-      } else {
-        showToast(`Swap failed: ${err.message || err}`);
-      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(/reject|denied|4001/i.test(msg) ? "Transaction rejected" : `Swap failed: ${msg}`);
     } finally {
       setIsSwapping(false);
     }
   };
 
-  // --- AGENT COMMAND SUBMIT ---
+  const amountLabel =
+    tokenA === NATIVE ? NATIVE : tokenA === A.TERA ? "TERA" : tokenA === A.USDC ? "USDC" : "TOKEN";
+
+  /* -------- Agent -------- */
+  const [agentInput, setAgentInput] = useState("");
+  const [agentSelectedToken, setAgentSelectedToken] = useState("");
+  const [agentStatus, setAgentStatus] = useState<"idle" | "thinking" | "done" | "rejected">("idle");
+  const [agentLogs, setAgentLogs] = useState<
+    Array<{ type: "user" | "agent" | "system" | "error"; text: string; hash?: string }>
+  >([
+    {
+      type: "agent",
+      text: "Online. Policy enforcement active: max 100 ETH / 1000 tokens per trade, contract allow-list enforced. How can I help on Horizen Testnet?",
+    },
+  ]);
+
   const handleAgentCommand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agentInput.trim()) return;
-
-    const userMsg = agentInput;
+    const msg = agentInput;
     setAgentInput("");
-    setAgentLogs(prev => [...prev, { type: "user", text: userMsg }]);
+    setAgentLogs((l) => [...l, { type: "user", text: msg }]);
     setAgentStatus("thinking");
-
     try {
-      const payload: any = { prompt: userMsg };
-      if (userAddress) payload.userAddress = userAddress;
-      if (agentSelectedToken) payload.contextToken = agentSelectedToken;
-
+      const body: Record<string, string> = { prompt: msg };
+      if (address) body.userAddress = address;
+      if (agentSelectedToken) body.contextToken = agentSelectedToken;
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(body),
       });
       const data = await res.json();
-
       if (data.status === "REJECTED") {
         setAgentStatus("rejected");
-        setAgentLogs(prev => [...prev, { 
-          type: "error", 
-          text: `🚨 POLICY REJECTED [${data.policyViolation}]: ${data.message}` 
-        }]);
+        setAgentLogs((l) => [...l, { type: "error", text: `POLICY REJECTED [${data.policyViolation}]: ${data.message}` }]);
       } else if (data.status === "SUCCESS") {
         setAgentStatus("done");
-        setAgentLogs(prev => [...prev, { 
-          type: "agent", 
-          text: `🛡️ Guardrails Passed: Transaction executed by Agent Hot Wallet. \n\n${data.message}`,
-          hash: data.txHash
-        }]);
+        setAgentLogs((l) => [...l, { type: "agent", text: `Guardrails passed. ${data.message}`, hash: data.txHash }]);
       } else if (data.status === "SIMULATED") {
         setAgentStatus("done");
-        setAgentLogs(prev => [...prev, { 
-          type: "system", 
-          text: `🔍 Simulated Success: Guardrails Checked. \n\nParsed Action: ${JSON.stringify(data.parsedAction)} \n\nMessage: ${data.message}` 
-        }]);
+        setAgentLogs((l) => [...l, { type: "system", text: `Simulated. ${data.message}` }]);
       } else {
         setAgentStatus("done");
-        setAgentLogs(prev => [...prev, { 
-          type: "agent", 
-          text: data.message || "Command executed, but response was unclear." 
-        }]);
+        setAgentLogs((l) => [...l, { type: "agent", text: data.message || "Done." }]);
       }
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
       setAgentStatus("idle");
-      setAgentLogs(prev => [...prev, { type: "error", text: `Error: ${err.message || err}` }]);
+      setAgentLogs((l) => [...l, { type: "error", text: `Error: ${err instanceof Error ? err.message : err}` }]);
     }
   };
 
-  return (
-    <main className="min-h-screen px-4 pb-20 pt-32 flex flex-col items-center">
-      {/* Glow effects */}
-      <div className="ambient-glow-purple top-10 left-10"></div>
-      <div className="ambient-glow-teal bottom-10 right-10"></div>
+  /* -------- Faucet -------- */
+  const [faucetTx, setFaucetTx] = useState(false);
+  const [nextClaimTime, setNextClaimTime] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState("");
 
-      {/* Levitating Nav Bar */}
+  const { data: claimTimeData, refetch: refetchClaimTime, isError: claimErr } = useReadContract({
+    address: A.TeraFaucet as `0x${string}`,
+    abi: TeraFaucetAbi,
+    functionName: "nextClaimTime",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!A.TeraFaucet, retry: false },
+  });
+  useEffect(() => {
+    if (claimErr) setNextClaimTime(0);
+    else if (claimTimeData !== undefined) setNextClaimTime(Number(claimTimeData));
+  }, [claimTimeData, claimErr]);
+  useEffect(() => {
+    const i = setInterval(() => {
+      if (nextClaimTime === null) return;
+      const now = Math.floor(Date.now() / 1000);
+      if (nextClaimTime === 0 || now >= nextClaimTime) return setCountdown("Ready to claim");
+      const d = nextClaimTime - now;
+      setCountdown(`${Math.floor(d / 3600)}h ${Math.floor((d % 3600) / 60)}m ${d % 60}s`);
+    }, 1000);
+    return () => clearInterval(i);
+  }, [nextClaimTime]);
+
+  const handleClaimFaucet = async () => {
+    if (!isConnected) return showToast("Connect your wallet");
+    if (!A.TeraFaucet) return showToast("Faucet not deployed on Horizen yet");
+    setFaucetTx(true);
+    try {
+      await ensureHorizen();
+      const tx = await writeContractAsync({
+        address: A.TeraFaucet as `0x${string}`,
+        abi: TeraFaucetAbi,
+        functionName: "claimTera",
+        args: [],
+      });
+      showToast(`Claimed 100 TERA: ${tx}`);
+      setTimeout(() => refetchClaimTime(), 5000);
+    } catch (err) {
+      showToast(`Claim failed: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      setFaucetTx(false);
+    }
+  };
+
+  /* ---------------------------------------------------------------- */
+
+  return (
+    <main className="min-h-screen px-4 pb-20 pt-28 flex flex-col items-center">
+      <div className="ambient-glow-purple top-0 -left-20" />
+      <div className="ambient-glow-teal bottom-0 -right-20" />
+
       <nav className="levitating-nav">
-        <div className="flex items-center mr-4">
-          <Image 
-            src="/Artboard_15_4x-100_1_-removebg-preview.png" 
-            alt="TradeEasy Logo" 
-            width={400} 
-            height={100} 
-            className="h-10 w-auto object-contain"
-            priority
-          />
+        <div className="flex items-center gap-2 pl-2 pr-1">
+          <span className="w-6 h-6 rounded-md bg-[var(--color-hz-navy)] flex items-center justify-center">
+            <span className="w-2.5 h-2.5 rounded-[3px] bg-[var(--color-hz-gold)]" />
+          </span>
+          <span className="font-extrabold tracking-tight text-[var(--color-hz-navy)] text-[15px] hidden sm:block">
+            Trade Easy
+          </span>
         </div>
-        <div className="flex gap-1 border-r border-white/10 pr-4 mr-2">
-          <button
-            onClick={() => setActiveTab("mint")}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
-              activeTab === "mint" 
-                ? "bg-neon-purple/20 text-neon-purple border border-neon-purple/30 text-glow-purple" 
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <Coins className="w-4 h-4" />
-            Mint
-          </button>
-          <button
-            onClick={() => setActiveTab("swap")}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
-              activeTab === "swap" 
-                ? "bg-neon-teal/20 text-neon-teal border border-neon-teal/30 text-glow-teal" 
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <ArrowLeftRight className="w-4 h-4" />
-            Swap
-          </button>
-          <button
-            onClick={() => setActiveTab("agent")}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
-              activeTab === "agent" 
-                ? "bg-neon-purple/20 text-neon-purple border border-neon-purple/30 text-glow-purple" 
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <Bot className="w-4 h-4" />
-            AI Agent
-          </button>
-          <button
-            onClick={() => setActiveTab("faucet")}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
-              activeTab === "faucet" 
-                ? "bg-neon-teal/20 text-neon-teal border border-neon-teal/30 text-glow-teal" 
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <Coins className="w-4 h-4" />
-            Faucet
-          </button>
+        <div className="flex gap-0.5 border-l border-r border-[var(--color-border)] px-2 mx-1">
+          <NavTab active={tab === "swap"} onClick={() => setTab("swap")} icon={<ArrowLeftRight className="w-4 h-4" />} label="Swap" />
+          <NavTab active={tab === "agent"} onClick={() => setTab("agent")} icon={<Bot className="w-4 h-4" />} label="AI Agent" />
+          <NavTab active={tab === "faucet"} onClick={() => setTab("faucet")} icon={<Droplets className="w-4 h-4" />} label="Faucet" />
+          <NavTab active={tab === "mint"} onClick={() => setTab("mint")} icon={<Coins className="w-4 h-4" />} label="Mint" />
           <Link
             href="/profile"
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 text-gray-400 hover:text-white"
+            className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"
           >
             <User className="w-4 h-4" />
-            Profile
+            <span className="hidden sm:inline">Profile</span>
           </Link>
         </div>
 
-        {/* Live Price Ticker */}
-        <div className={`hidden md:flex items-center gap-3 border-r border-white/10 pr-4 mr-2 ${pricePulse ? 'animate-pulse' : 'transition-opacity duration-1000'}`}>
-          {!isFetchingPrices ? (
-            <>
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-                <span className="text-gray-400">X1T:</span> 
-                <span className="text-neon-teal">Testnet</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono font-bold text-white tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-                <span className="text-gray-400">TERRA:</span> 
-                <span className="text-neon-purple">${terraUsdPrice ? terraUsdPrice.toFixed(4) : "0.0000"}</span>
-              </div>
-            </>
-          ) : (
-            <div className="text-xs font-mono text-gray-500 animate-pulse px-3 py-1.5">Fetching Live Prices...</div>
-          )}
+        <div className="hidden md:flex items-center gap-2 border-r border-[var(--color-border)] pr-3 mr-1">
+          <span className="text-[11px] font-mono font-semibold text-[var(--color-ink-2)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2.5 py-1 rounded-lg">
+            Horizen&nbsp;<span className="text-[var(--color-hz-gold-deep)]">Testnet</span>
+          </span>
+          <span className="text-[11px] font-mono font-semibold text-[var(--color-ink-2)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2.5 py-1 rounded-lg">
+            $TERA
+          </span>
         </div>
 
         <CustomConnectButton />
       </nav>
 
-      {/* Main Container */}
       <div className="w-full max-w-4xl z-10 flex flex-col gap-8">
-        
-        {/* MINT TAB */}
-        {activeTab === "mint" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
-            {/* Left Card: Create HTS Token */}
-            <div className="glass-card p-8 flex flex-col gap-6">
+        {/* ---------------- SWAP ---------------- */}
+        {tab === "swap" && (
+          <div className="flex justify-center animate-fadeIn">
+            <div className="card p-8 flex flex-col gap-6 max-w-md w-full">
               <div>
-                <h2 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
-                  <Coins className="w-6 h-6 text-neon-purple" />
-                  Mint HTS Token
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <ArrowLeftRight className="w-6 h-6 text-[var(--color-hz-gold-deep)]" />
+                  Instant Swap
                 </h2>
-                <p className="text-gray-400 text-sm mt-1">
-                  Deploy a native X1 EcoChain Token Service (HTS) fungible token with auto-supply keys.
+                <p className="text-[var(--color-ink-2)] text-sm mt-1">Swap ETH, TERA and USDC through the Token Vendor.</p>
+              </div>
+
+              <form onSubmit={handleSwap} className="flex flex-col gap-4">
+                <div className="z-40 relative">
+                  <TokenSelector label="Token In" value={tokenA} onChange={setTokenA} placeholder="Select token" />
+                </div>
+                <div className="z-30 relative">
+                  <TokenSelector label="Token Out" value={tokenB} onChange={setTokenB} placeholder="Select token" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">
+                    Amount in ({amountLabel})
+                  </label>
+                  <input
+                    type="number"
+                    value={swapAmountIn}
+                    onChange={(e) => setSwapAmountIn(e.target.value)}
+                    placeholder="100"
+                    className="field"
+                  />
+                </div>
+                <button type="submit" disabled={isSwapping} className="btn-gold w-full py-3.5 flex items-center justify-center gap-2">
+                  {isSwapping && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isSwapping ? "Swapping…" : "Execute Swap"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- AGENT ---------------- */}
+        {tab === "agent" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-fadeIn">
+            <div className="md:col-span-2 card p-8 flex flex-col gap-6 min-h-[500px] justify-between">
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
+                <div className="flex items-center gap-3">
+                  <Cpu className="w-7 h-7 text-[var(--color-hz-gold-deep)]" />
+                  <div>
+                    <h2 className="text-xl font-bold">Horizen Trading Agent</h2>
+                    <span className="text-xs text-[var(--color-hz-gold-deep)] font-semibold font-mono">POLICY SECURED</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      agentStatus === "thinking"
+                        ? "bg-[var(--color-hz-gold-deep)] animate-ping"
+                        : agentStatus === "done"
+                        ? "bg-[var(--color-hz-green)]"
+                        : agentStatus === "rejected"
+                        ? "bg-[var(--color-hz-danger)]"
+                        : "bg-[var(--color-ink-3)]"
+                    }`}
+                  />
+                  <span className="text-xs text-[var(--color-ink-2)] font-mono capitalize">{agentStatus}</span>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto my-2 pr-1 flex flex-col gap-3 max-h-[300px]">
+                {agentLogs.map((log, i) => (
+                  <div
+                    key={i}
+                    className={`p-3.5 rounded-2xl max-w-[85%] text-sm whitespace-pre-line ${
+                      log.type === "user"
+                        ? "bg-[var(--color-hz-gold)]/20 self-end"
+                        : log.type === "error"
+                        ? "bg-[var(--color-hz-danger)]/10 text-[var(--color-hz-danger)] self-start"
+                        : log.type === "system"
+                        ? "bg-[var(--color-surface-2)] self-start"
+                        : "bg-[var(--color-surface-2)] self-start"
+                    }`}
+                  >
+                    {log.text}
+                    {log.hash && (
+                      <a
+                        href={`${EXPLORER}/tx/${log.hash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 flex items-center gap-1 text-xs text-[var(--color-hz-blue)]"
+                      >
+                        View on explorer <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+                {agentStatus === "thinking" && (
+                  <div className="bg-[var(--color-surface-2)] p-3.5 rounded-2xl max-w-[85%] self-start flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-[var(--color-hz-gold-deep)]" />
+                    <span className="text-sm text-[var(--color-ink-2)] font-mono">Analysing policy and executing…</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="z-40 relative">
+                  <TokenSelector
+                    label="Target token (context)"
+                    value={agentSelectedToken}
+                    onChange={(v) => {
+                      setAgentSelectedToken(v);
+                      setAgentInput((p) => (p ? `${p} ${v}` : v));
+                    }}
+                    placeholder="Select a token…"
+                  />
+                </div>
+                <form onSubmit={handleAgentCommand} className="flex gap-2">
+                  <input
+                    value={agentInput}
+                    onChange={(e) => setAgentInput(e.target.value)}
+                    placeholder="e.g. Swap 10 ETH for TERA"
+                    className="field flex-1"
+                  />
+                  <button type="submit" className="btn-navy px-5 flex items-center gap-1.5">
+                    Send <ChevronRight className="w-4 h-4" />
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div className="card p-8 flex flex-col items-center justify-center text-center gap-6">
+              <h3 className="text-lg font-bold">Command Sphere</h3>
+              <div className="relative my-2">
+                <div
+                  className={`absolute inset-0 rounded-full bg-[var(--color-hz-gold)]/40 blur-xl transition-all ${
+                    agentStatus === "thinking" ? "scale-125 animate-pulse" : "scale-100"
+                  }`}
+                />
+                <div className="w-32 h-32 rounded-full bg-[var(--color-hz-navy)] flex items-center justify-center relative z-10">
+                  <Cpu className="w-14 h-14 text-[var(--color-hz-gold)]" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex items-start gap-2 text-xs text-left bg-[var(--color-surface-2)] border border-[var(--color-border)] p-3 rounded-xl">
+                  <ShieldCheck className="w-6 h-6 text-[var(--color-hz-gold-deep)] flex-shrink-0" />
+                  <div>
+                    <span className="font-bold block">Spending guardrail</span>
+                    <span className="text-[var(--color-ink-2)]">Max 100 ETH / 1000 tokens per trade.</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 text-xs text-left bg-[var(--color-surface-2)] border border-[var(--color-border)] p-3 rounded-xl">
+                  <CheckCircle2 className="w-6 h-6 text-[var(--color-hz-green)] flex-shrink-0" />
+                  <div>
+                    <span className="font-bold block">Verified allow-list</span>
+                    <span className="text-[var(--color-ink-2)]">Only Trade Easy contracts on Horizen.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- FAUCET ---------------- */}
+        {tab === "faucet" && (
+          <div className="flex justify-center animate-fadeIn">
+            <div className="card p-8 flex flex-col gap-6 max-w-md w-full text-center items-center">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center justify-center gap-2">
+                  <Droplets className="w-6 h-6 text-[var(--color-hz-gold-deep)]" />
+                  TERA Daily Faucet
+                </h2>
+                <p className="text-[var(--color-ink-2)] text-sm mt-2">
+                  Claim 100 TERA every 24 hours to test Trade Easy on Horizen.
                 </p>
               </div>
 
-              <form onSubmit={handleMintToken} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Token Name</label>
-                  <input
-                    type="text"
-                    value={tokenName}
-                    onChange={(e) => setTokenName(e.target.value)}
-                    placeholder="e.g. Antigravity"
-                    className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
-                  />
-                </div>
+              <div className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-6 w-full flex flex-col gap-2">
+                <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Next claim available</span>
+                <span
+                  className={`text-3xl font-mono font-bold ${
+                    countdown === "Ready to claim" ? "text-[var(--color-hz-green)]" : "text-[var(--color-hz-navy)]"
+                  }`}
+                >
+                  {nextClaimTime === null ? "Loading…" : countdown}
+                </span>
+              </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Token Symbol</label>
-                  <input
-                    type="text"
-                    value={tokenSymbol}
-                    onChange={(e) => setTokenSymbol(e.target.value)}
-                    placeholder="e.g. ANTI"
-                    className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
-                  />
-                </div>
+              <button
+                onClick={handleClaimFaucet}
+                disabled={faucetTx || (nextClaimTime !== null && countdown !== "Ready to claim")}
+                className="btn-gold w-full py-3.5 flex items-center justify-center gap-2"
+              >
+                {faucetTx && <Loader2 className="w-4 h-4 animate-spin" />}
+                {faucetTx ? "Claiming…" : "Claim 100 TERA"}
+              </button>
+            </div>
+          </div>
+        )}
 
+        {/* ---------------- MINT ---------------- */}
+        {tab === "mint" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
+            <div className="card p-8 flex flex-col gap-6">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Coins className="w-6 h-6 text-[var(--color-hz-gold-deep)]" />
+                  Deploy Token
+                </h2>
+                <p className="text-[var(--color-ink-2)] text-sm mt-1">Deploy a fungible token on Horizen via the token factory.</p>
+              </div>
+
+              <form onSubmit={handleMint} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Token name</label>
+                  <input value={tokenName} onChange={(e) => setTokenName(e.target.value)} placeholder="e.g. Antigravity" className="field" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Token symbol</label>
+                  <input value={tokenSymbol} onChange={(e) => setTokenSymbol(e.target.value)} placeholder="e.g. ANTI" className="field" />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Decimals</label>
-                    <input
-                      type="number"
-                      value={tokenDecimals}
-                      onChange={(e) => setTokenDecimals(e.target.value)}
-                      placeholder="18"
-                      className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
-                    />
+                    <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Decimals</label>
+                    <input type="number" value={tokenDecimals} onChange={(e) => setTokenDecimals(e.target.value)} className="field" />
                   </div>
-
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Initial Supply</label>
-                    <input
-                      type="number"
-                      value={initialSupply}
-                      onChange={(e) => setInitialSupply(e.target.value)}
-                      placeholder="1000000"
-                      className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
-                    />
+                    <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Initial supply</label>
+                    <input type="number" value={initialSupply} onChange={(e) => setInitialSupply(e.target.value)} placeholder="1000000" className="field" />
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">HTS Creation Fee (X1)</label>
-                  <input
-                    type="number"
-                    value={creationFeeHbar}
-                    onChange={(e) => setCreationFeeHbar(e.target.value)}
-                    placeholder="25"
-                    className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
-                  />
-                  <span className="text-[10px] text-gray-500">X1 EcoChain Token Service requires X1 to pay creation fees.</span>
+                  <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Creation fee (ETH)</label>
+                  <input type="number" value={creationFee} onChange={(e) => setCreationFee(e.target.value)} placeholder="0" className="field" />
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={mintingTx}
-                  className="w-full py-4 bg-gradient-to-r from-neon-purple to-purple-800 hover:from-purple-500 hover:to-neon-purple text-white font-bold rounded-xl transition-all duration-200 mt-2 flex items-center justify-center gap-2 border border-purple-500/30"
-                >
-                  {mintingTx ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Creating Token...
-                    </>
-                  ) : (
-                    "Deploy HTS Token"
-                  )}
+                <button type="submit" disabled={mintingTx} className="btn-navy w-full py-3.5 flex items-center justify-center gap-2">
+                  {mintingTx && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {mintingTx ? "Deploying…" : "Deploy Token"}
                 </button>
               </form>
             </div>
 
-            {/* Right Card: Your Created Tokens */}
-            <div className="glass-card p-8 flex flex-col gap-6">
+            <div className="card p-8 flex flex-col gap-6">
               <div>
-                <h3 className="text-xl font-bold text-white tracking-wide">Your Deployed Tokens</h3>
-                <p className="text-gray-400 text-sm mt-1">HTS Tokens deployed via your wallet contract treasury.</p>
+                <h3 className="text-xl font-bold">Your Deployed Tokens</h3>
+                <p className="text-[var(--color-ink-2)] text-sm mt-1">Tokens you created through the factory.</p>
               </div>
-
-              <div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] pr-2">
+              <div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] pr-1">
                 {userTokenList.length === 0 ? (
-                  <div className="py-12 flex flex-col items-center justify-center text-center border border-dashed border-white/10 rounded-2xl">
-                    <Coins className="w-8 h-8 text-gray-600 mb-2" />
-                    <p className="text-gray-500 text-sm">No tokens created yet.</p>
+                  <div className="py-12 flex flex-col items-center justify-center text-center border border-dashed border-[var(--color-border)] rounded-2xl">
+                    <Coins className="w-8 h-8 text-[var(--color-ink-3)] mb-2" />
+                    <p className="text-[var(--color-ink-3)] text-sm">No tokens created yet.</p>
                   </div>
                 ) : (
-                  userTokenList.map((token, i) => (
-                    <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-xl flex flex-col gap-1 hover:border-white/20 transition-all">
+                  userTokenList.map((t, i) => (
+                    <div key={i} className="p-4 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl flex flex-col gap-1">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-neon-purple font-mono uppercase font-bold">Token {i+1}</span>
-                        <a 
-                          href={`https://hashscan.io/testnet/token/${token}`}
+                        <span className="text-xs text-[var(--color-hz-gold-deep)] font-mono uppercase font-bold">Token {i + 1}</span>
+                        <a
+                          href={`${EXPLORER}/token/${t}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-gray-400 hover:text-white flex items-center gap-1 text-[10px]"
+                          className="text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)] flex items-center gap-1 text-[10px]"
                         >
-                          HashScan <ExternalLink className="w-3 h-3" />
+                          Explorer <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
-                      <span className="text-sm font-mono text-white select-all break-all">{token}</span>
+                      <span className="text-sm font-mono select-all break-all">{t}</span>
                     </div>
                   ))
                 )}
@@ -802,294 +736,12 @@ export default function Home() {
             </div>
           </div>
         )}
-
-        {/* SWAP TAB */}
-        {activeTab === "swap" && (
-          <div className="flex justify-center animate-fadeIn">
-            <div className="glass-card-teal p-8 flex flex-col gap-6 max-w-md w-full">
-              <div>
-                <h2 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
-                  <ArrowLeftRight className="w-6 h-6 text-neon-teal" />
-                  Instant Swap
-                </h2>
-                <p className="text-gray-400 text-sm mt-1">Swap between assets seamlessly via Token Vendor.</p>
-              </div>
-
-              <form onSubmit={handleSwap} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-4 z-40 relative">
-                  <TokenSelector 
-                    label="Token In" 
-                    value={tokenA} 
-                    onChange={setTokenA} 
-                    placeholder="Select Token" 
-                  />
-                </div>
-
-                <div className="flex flex-col gap-4 z-30 relative">
-                  <TokenSelector 
-                    label="Token Out" 
-                    value={tokenB} 
-                    onChange={setTokenB} 
-                    placeholder="Select Token" 
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AMOUNT IN ({tokenA === "X1" ? "X1" : tokenA === (addresses as any).TERA ? "TERA" : tokenA === (addresses as any).USDC ? "USDC" : "TOKEN"})</label>
-                  <input
-                    type="number"
-                    value={swapAmountIn}
-                    onChange={(e) => setSwapAmountIn(e.target.value)}
-                    placeholder="100"
-                    className="w-full px-4 py-3 bg-void/50 border border-white/10 rounded-xl focus:border-neon-teal/50 focus:outline-none text-white text-sm"
-                  />
-                </div>
-
-                {tokenB === (addresses as any).TERA && !isTokenAssociated ? (
-                  <button
-                    type="button"
-                    disabled={isAssociating}
-                    onClick={handleAssociate}
-                    className="w-full py-4 bg-gradient-to-r from-neon-purple to-purple-800 hover:from-purple-500 hover:to-neon-purple text-white font-bold rounded-xl transition-all duration-200 mt-2 flex items-center justify-center gap-2 border border-purple-500/30"
-                  >
-                    {isAssociating ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Associating TERA...
-                      </>
-                    ) : (
-                      "Associate TERA Token"
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={isSwapping}
-                    className="w-full py-4 bg-gradient-to-r from-neon-teal to-teal-800 hover:from-teal-500 hover:to-neon-teal text-white font-bold rounded-xl transition-all duration-200 mt-2 flex items-center justify-center gap-2 border border-teal-500/30"
-                  >
-                    {isSwapping ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Swapping...
-                      </>
-                    ) : (
-                      "Execute Swap"
-                    )}
-                  </button>
-                )}
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* AI AGENT TAB */}
-        {activeTab === "agent" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-fadeIn">
-            {/* Left 2 Columns: Conversational AI Command Sphere */}
-            <div className="md:col-span-2 glass-card p-8 flex flex-col gap-6 min-h-[500px] justify-between">
-              
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <Cpu className="w-7 h-7 text-neon-purple text-glow-purple" />
-                  <div>
-                    <h2 className="text-xl font-bold text-white tracking-wide">X1 EcoChain Trading Agent</h2>
-                    <span className="text-xs text-neon-purple font-semibold font-mono">POLICY SECURED ACTIVE</span>
-                  </div>
-                </div>
-                
-                {/* Visual indicator of agent status */}
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${
-                    agentStatus === "thinking" ? "bg-neon-purple animate-ping" : 
-                    agentStatus === "done" ? "bg-green-500" :
-                    agentStatus === "rejected" ? "bg-red-500" : "bg-teal-500"
-                  }`}></span>
-                  <span className="text-xs text-gray-400 font-mono capitalize">{agentStatus}</span>
-                </div>
-              </div>
-
-              {/* Chat log */}
-              <div className="flex-1 overflow-y-auto my-4 pr-2 flex flex-col gap-4 max-h-[300px]">
-                {agentLogs.map((log, i) => (
-                  <div 
-                    key={i} 
-                    className={`flex flex-col gap-1.5 p-4 rounded-2xl max-w-[85%] ${
-                      log.type === "user" 
-                        ? "bg-neon-purple/10 border border-neon-purple/20 self-end text-white" 
-                        : log.type === "error"
-                        ? "bg-red-500/10 border border-red-500/20 self-start text-red-400"
-                        : log.type === "system"
-                        ? "bg-white/5 border border-white/10 self-start text-teal-400"
-                        : "bg-white/5 border border-white/10 self-start text-gray-300"
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-line font-medium leading-relaxed">{log.text}</p>
-                    {log.hash && (
-                      <a 
-                        href={`https://hashscan.io/testnet/transaction/${log.hash}`} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-xs text-neon-purple font-mono flex items-center gap-1 hover:underline mt-1"
-                      >
-                        Verify on HashScan <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    )}
-                  </div>
-                ))}
-                {agentStatus === "thinking" && (
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-2xl max-w-[85%] self-start flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-neon-purple" />
-                    <span className="text-sm text-gray-400 font-mono">Agent analyzing policies and executing trade...</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Input Form */}
-              <div className="flex flex-col gap-3">
-                <div className="w-full z-40 relative">
-                  <TokenSelector 
-                    label="Target Token (Context)" 
-                    value={agentSelectedToken} 
-                    onChange={(val) => {
-                      setAgentSelectedToken(val);
-                      setAgentInput((prev) => prev ? prev + " " + val : val);
-                    }} 
-                    placeholder="Select a token..." 
-                  />
-                </div>
-                <form onSubmit={handleAgentCommand} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={agentInput}
-                    onChange={(e) => setAgentInput(e.target.value)}
-                    placeholder="e.g. Swap 10 X1 for token..."
-                    className="flex-1 px-4 py-3.5 bg-void/50 border border-white/10 rounded-xl focus:border-neon-purple/50 focus:outline-none text-white text-sm"
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 bg-neon-purple hover:bg-purple-600 text-white rounded-xl font-bold flex items-center gap-1.5 transition-all"
-                  >
-                    Send
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Right Column: Central Command Sphere */}
-            <div className="glass-card p-8 flex flex-col items-center justify-center text-center gap-6">
-              <h3 className="text-lg font-bold text-white tracking-wide">AI Command Sphere</h3>
-              
-              {/* Pulsing Command Sphere */}
-              <div className="relative my-4">
-                {/* Outer Glows */}
-                <div className={`absolute inset-0 rounded-full bg-neon-purple/30 blur-xl transition-all duration-1000 ${
-                  agentStatus === "thinking" ? "scale-125 animate-pulse" : "scale-100"
-                }`}></div>
-                <div className={`absolute inset-0 rounded-full bg-neon-teal/20 blur-lg transition-all duration-1000 ${
-                  agentStatus === "thinking" ? "scale-110" : "scale-100"
-                }`}></div>
-
-                {/* Sphere body */}
-                <div className={`w-36 h-36 rounded-full bg-gradient-to-br from-neon-purple via-indigo-900 to-neon-teal flex items-center justify-center border border-white/20 shadow-2xl relative z-10 transition-transform duration-500 ${
-                  agentStatus === "thinking" ? "rotate-180 scale-105" : "hover:scale-105"
-                }`}>
-                  <Cpu className="w-16 h-16 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-4 mt-2">
-                <div className="flex items-center gap-2 text-xs text-left bg-white/5 border border-white/10 p-3.5 rounded-xl">
-                  <ShieldAlert className="w-7 h-7 text-neon-teal flex-shrink-0" />
-                  <div>
-                    <span className="font-bold text-white block">Spending Limit Guardrail</span>
-                    <span className="text-gray-400">Max trade limited to 100 X1 / 1000 Tokens.</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-left bg-white/5 border border-white/10 p-3.5 rounded-xl">
-                  <CheckCircle2 className="w-7 h-7 text-neon-purple flex-shrink-0" />
-                  <div>
-                    <span className="font-bold text-white block">Verified Allow-list</span>
-                    <span className="text-gray-400">Only signed smart contracts deployed on TradeEasy allowed.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* FAUCET TAB */}
-        {activeTab === "faucet" && (
-          <div className="flex justify-center animate-fadeIn">
-            <div className="glass-card-teal p-8 flex flex-col gap-6 max-w-md w-full text-center items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-white tracking-wide flex items-center justify-center gap-2">
-                  <Coins className="w-6 h-6 text-neon-teal" />
-                  $TERA Daily Faucet
-                </h2>
-                <p className="text-gray-400 text-sm mt-2">
-                  Claim exactly 100 $TERA tokens every 24 hours to test out Trade Easy dApp features.
-                </p>
-              </div>
-
-              <div className="bg-void/50 border border-white/10 rounded-2xl p-6 w-full flex flex-col gap-2 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-neon-teal/5 group-hover:bg-neon-teal/10 transition-colors"></div>
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider relative z-10">Next Claim Available</span>
-                <span className={`text-3xl font-mono font-bold relative z-10 ${countdownStr === "Ready to Claim" ? "text-green-400" : "text-neon-teal text-glow-teal"}`}>
-                  {nextClaimTime === null ? "Loading..." : countdownStr}
-                </span>
-              </div>
-
-              {!isTokenAssociated ? (
-                <button
-                  onClick={handleAssociate}
-                  disabled={isAssociating}
-                  className={`w-full py-4 font-bold rounded-xl transition-all duration-300 mt-2 flex items-center justify-center gap-2 border shadow-[0_0_20px_rgba(168,85,247,0.3)] ${
-                    isAssociating
-                      ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed shadow-none"
-                      : "bg-gradient-to-r from-neon-purple to-purple-800 hover:from-purple-500 hover:to-neon-purple text-white border-purple-500/30"
-                  }`}
-                >
-                  {isAssociating ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Associating...
-                    </>
-                  ) : (
-                    "Associate $TERA"
-                  )}
-                </button>
-              ) : (
-                <button
-                  onClick={handleClaimFaucet}
-                  disabled={faucetClaimTx || (nextClaimTime !== null && countdownStr !== "Ready to Claim")}
-                  className={`w-full py-4 font-bold rounded-xl transition-all duration-300 mt-2 flex items-center justify-center gap-2 border shadow-[0_0_20px_rgba(45,212,191,0.3)] ${
-                    faucetClaimTx || (nextClaimTime !== null && countdownStr !== "Ready to Claim")
-                      ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed shadow-none"
-                      : "bg-gradient-to-r from-neon-teal to-teal-800 hover:from-teal-500 hover:to-neon-teal text-white border-teal-500/30"
-                  }`}
-                >
-                  {faucetClaimTx ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Claiming...
-                    </>
-                  ) : (
-                    "Claim 100 $TERA"
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
       </div>
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 bg-[#1a1c23] border border-white/10 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-fadeIn flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-neon-teal" />
-          <p className="text-sm font-medium">{toastMessage}</p>
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 bg-white border border-[var(--color-border)] px-5 py-3.5 rounded-xl shadow-xl z-50 animate-fadeIn flex items-center gap-3 max-w-sm">
+          <CheckCircle2 className="w-5 h-5 text-[var(--color-hz-gold-deep)] flex-shrink-0" />
+          <p className="text-sm break-all">{toast}</p>
         </div>
       )}
     </main>

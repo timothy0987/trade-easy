@@ -1,114 +1,156 @@
 @import "tailwindcss";
 
 @theme {
-  --color-void: #030303;
-  --color-neon-purple: #a855f7;
-  --color-neon-teal: #14b8a6;
+  /* --- Horizen brand --- */
+  --color-hz-navy: #030e24;      /* primary ink / brand black */
+  --color-hz-navy-soft: #1a2332;
+  --color-hz-gold: #fecb17;      /* signature accent */
+  --color-hz-gold-deep: #e3a400; /* gold that stays legible as text on white */
+  --color-hz-green: #17a34a;
+  --color-hz-danger: #e5484d;
+  --color-hz-blue: #2f6bff;      /* secondary accent (badges, links) */
+
+  /* --- surfaces --- */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f7f9;
+  --color-border: #e7e8ee;
+  --color-ink: #030e24;
+  --color-ink-2: #55606f;
+  --color-ink-3: #8b93a2;
+
+  /* --- compat shims for pages not yet migrated (e.g. /profile) --- */
+  --color-void: #f6f7f9;
+  --color-neon-purple: #030e24;
+  --color-neon-teal: #e3a400;
+
+  --font-sans: "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-  background-color: #030303;
-  color: #f3f4f6;
-  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   overflow-x: hidden;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom background grid */
+/* Subtle navy grid on white */
 .bg-grid {
-  background-size: 40px 40px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 44px 44px;
+  background-image:
+    linear-gradient(to right, rgba(3, 14, 36, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(3, 14, 36, 0.035) 1px, transparent 1px);
 }
 
-/* Levitating top navigation bar */
+/* Floating pill nav */
 .levitating-nav {
   position: fixed;
-  top: 1.5rem;
+  top: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: rgba(3, 3, 3, 0.7);
-  box-shadow: 0 10px 30px -10px rgba(168, 85, 247, 0.25),
-              0 1px 1px 0 rgba(255, 255, 255, 0.05) inset;
+  border: 1px solid var(--color-border);
+  background-color: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 28px -14px rgba(3, 14, 36, 0.22);
   border-radius: 9999px;
-  padding: 0.5rem 1.2rem;
+  padding: 0.45rem 0.7rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 0.6rem;
 }
 
-.levitating-nav:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 35px -8px rgba(168, 85, 247, 0.4),
-              0 1px 1px 0 rgba(255, 255, 255, 0.08) inset;
-}
-
-/* Glassmorphism Card */
-.glass-card {
-  backdrop-filter: blur(20px);
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 1.5rem;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.8),
-              0 0 50px -10px rgba(168, 85, 247, 0.12);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
+/* Card — the one surface primitive */
+.card,
+.glass-card,
 .glass-card-teal {
-  backdrop-filter: blur(20px);
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 1.5rem;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.8),
-              0 0 50px -10px rgba(20, 184, 166, 0.12);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgba(3, 14, 36, 0.04), 0 14px 34px -20px rgba(3, 14, 36, 0.14);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
-
-.glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 25px 45px -10px rgba(0, 0, 0, 0.9),
-              0 0 60px -5px rgba(168, 85, 247, 0.22);
-}
-
+.card:hover,
+.glass-card:hover,
 .glass-card-teal:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 25px 45px -10px rgba(0, 0, 0, 0.9),
-              0 0 60px -5px rgba(20, 184, 166, 0.22);
+  border-color: #d7d9e2;
+  box-shadow: 0 1px 2px rgba(3, 14, 36, 0.05), 0 18px 40px -20px rgba(3, 14, 36, 0.2);
 }
 
-/* Ambient glow spheres */
-.ambient-glow-purple {
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, transparent 70%);
-  filter: blur(60px);
-  pointer-events: none;
-  z-index: 0;
+/* Buttons */
+.btn-gold {
+  background: var(--color-hz-gold);
+  color: var(--color-hz-navy);
+  font-weight: 700;
+  border-radius: 0.75rem;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+.btn-gold:hover:not(:disabled) { filter: brightness(1.04); }
+.btn-gold:active:not(:disabled) { transform: translateY(1px); }
+.btn-gold:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-navy {
+  background: var(--color-hz-navy);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  transition: filter 0.15s ease;
+}
+.btn-navy:hover:not(:disabled) { filter: brightness(1.15); }
+.btn-navy:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-ghost {
+  background: var(--color-surface-2);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+  font-weight: 600;
+  border-radius: 0.75rem;
+  transition: background 0.15s ease;
+}
+.btn-ghost:hover:not(:disabled) { background: #eef0f4; }
+.btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Inputs */
+.field {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  color: var(--color-ink);
+  font-size: 0.875rem;
+}
+.field::placeholder { color: var(--color-ink-3); }
+.field:focus {
+  outline: none;
+  border-color: var(--color-hz-gold-deep);
+  box-shadow: 0 0 0 3px rgba(254, 203, 23, 0.25);
 }
 
+/* Ambient wash (kept for layout compatibility) */
+.ambient-glow-purple,
 .ambient-glow-teal {
   position: absolute;
-  width: 500px;
-  height: 500px;
+  width: 460px;
+  height: 460px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(20, 184, 166, 0.12) 0%, transparent 70%);
-  filter: blur(60px);
+  filter: blur(90px);
   pointer-events: none;
   z-index: 0;
 }
+.ambient-glow-purple { background: radial-gradient(circle, rgba(254, 203, 23, 0.18) 0%, transparent 70%); }
+.ambient-glow-teal { background: radial-gradient(circle, rgba(3, 14, 36, 0.06) 0%, transparent 70%); }
 
-/* Neon Text Glow */
-.text-glow-purple {
-  text-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
-}
+/* Glow text -> flat on a light theme */
+.text-glow-purple,
+.text-glow-teal { text-shadow: none; }
 
-.text-glow-teal {
-  text-shadow: 0 0 10px rgba(20, 184, 166, 0.4);
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
 }
+.animate-fadeIn { animation: fadeIn 0.3s ease both; }
+
+::selection { background: rgba(254, 203, 23, 0.4); }

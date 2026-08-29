@@ -1,347 +1,286 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { CustomConnectButton } from "@/components/CustomConnectButton";
 import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
-import { fetchX1AccountId } from "@/utils/hedera";
-import { formatEther, formatUnits } from "viem";
-import { 
-  Coins, 
-  ArrowLeftRight, 
-  Bot, 
-  Sparkles, 
-  User, 
+import { formatUnits } from "viem";
+import {
+  Coins,
+  ArrowLeftRight,
+  Bot,
+  User,
   Wallet,
   ExternalLink,
   Activity,
   Layers,
+  Droplets,
   Edit2,
   Check,
-  X
+  X,
 } from "lucide-react";
 
+import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
 import TokenCreatorAbi from "@/contracts/TokenCreator.json";
 import UserProfileAbi from "@/contracts/UserProfile.json";
 
+const A = addresses as Record<string, string>;
+const HORIZEN_CHAIN_ID = 845320009;
+const EXPLORER = "https://horizen-explorer-testnet.appchain.base.org";
+
 const ERC20_ABI = [
   {
-    "inputs": [{ "name": "account", "type": "address" }],
-    "name": "balanceOf",
-    "outputs": [{ "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
+    inputs: [{ name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 export default function Profile() {
-  const { address: userAddress, address, isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
-  const [x1Id, setX1Id] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isConnected && userAddress) {
-      fetchX1AccountId(userAddress).then((id) => {
-        if (id) setX1Id(id);
-      });
-    } else {
-      setX1Id(null);
-    }
-  }, [isConnected, userAddress]);
-
-  // Fetch Balances
-  const { data: balanceData } = useBalance({ 
-    address: address,
-    chainId: 204005,
-  });
+  const { data: ethBalance } = useBalance({ address, chainId: HORIZEN_CHAIN_ID });
 
   const { data: teraBalance } = useBalance({
-    address: userAddress,
-    token: (addresses as any).TERA as `0x${string}`,
-    query: { enabled: !!userAddress, refetchInterval: 5000 }
+    address,
+    token: A.TERA as `0x${string}`,
+    query: { enabled: !!address && !!A.TERA, refetchInterval: 5000 },
   });
 
   const { data: usdcBalance } = useReadContract({
-    address: (addresses as any).USDC as `0x${string}`,
+    address: A.USDC as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "balanceOf",
-    args: userAddress ? [userAddress] : undefined,
-    query: { enabled: !!userAddress, refetchInterval: 5000 }
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!A.USDC, refetchInterval: 5000 },
   });
 
-  // Fetch Deployed Assets
   const { data: userTokens } = useReadContract({
-    address: (addresses as any).TokenCreator as `0x${string}`,
+    address: A.TokenCreator as `0x${string}`,
     abi: TokenCreatorAbi,
     functionName: "getUserTokens",
-    args: userAddress ? [userAddress] : undefined,
-    query: { enabled: !!userAddress }
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!A.TokenCreator },
   });
 
-  // Fetch Username
   const { data: usernameData, refetch: refetchUsername } = useReadContract({
-    address: (addresses as any).UserProfile as `0x${string}`,
+    address: A.UserProfile as `0x${string}`,
     abi: UserProfileAbi,
     functionName: "usernames",
-    args: userAddress ? [userAddress] : undefined,
-    query: { enabled: !!userAddress, refetchInterval: 5000 }
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!A.UserProfile, refetchInterval: 5000 },
   });
 
   const username = usernameData ? (usernameData as string) : "";
   const displayUsername = username || "Set your username";
+  const shortAddress = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
+  const avatarStyle = address
+    ? { background: `linear-gradient(135deg, #${address.slice(2, 8)}, #${address.slice(8, 14)})` }
+    : { background: "linear-gradient(135deg, #030e24, #fecb17)" };
 
   const handleSaveUsername = async () => {
-    if (!editName.trim()) return;
+    if (!editName.trim() || !A.UserProfile) return;
     try {
       await writeContractAsync({
-        address: (addresses as any).UserProfile as `0x${string}`,
+        address: A.UserProfile as `0x${string}`,
         abi: UserProfileAbi,
         functionName: "setUsername",
-        args: [editName]
+        args: [editName],
       });
       setIsEditing(false);
       refetchUsername();
-    } catch (error) {
-      console.error("Error setting username:", error);
+    } catch (err) {
+      console.error("Error setting username:", err);
     }
   };
 
-  const shortAddress = userAddress ? `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}` : "";
-  const gradientStyle = userAddress ? {
-    background: `linear-gradient(135deg, #${userAddress.slice(2, 8)}, #${userAddress.slice(8, 14)})`
-  } : {
-    background: `linear-gradient(135deg, #2D1B69, #0D9488)`
-  };
-
   return (
-    <main className="min-h-screen px-4 pb-20 pt-32 flex flex-col items-center relative overflow-hidden">
-      {/* Glow effects */}
-      <div className="ambient-glow-purple top-20 right-20 opacity-50"></div>
-      <div className="ambient-glow-teal bottom-20 left-20 opacity-50"></div>
+    <main className="min-h-screen px-4 pb-20 pt-28 flex flex-col items-center relative overflow-hidden">
+      <div className="ambient-glow-purple top-0 -right-20" />
+      <div className="ambient-glow-teal bottom-0 -left-20" />
 
-      {/* Levitating Nav Bar */}
       <nav className="levitating-nav">
-        <div className="flex items-center gap-2 mr-4">
-          <Sparkles className="w-5 h-5 text-neon-purple text-glow-purple" />
-          <span className="font-bold tracking-tight text-white text-lg">TradeEasy</span>
+        <div className="flex items-center gap-2 pl-2 pr-1">
+          <span className="w-6 h-6 rounded-md bg-[var(--color-hz-navy)] flex items-center justify-center">
+            <span className="w-2.5 h-2.5 rounded-[3px] bg-[var(--color-hz-gold)]" />
+          </span>
+          <span className="font-extrabold tracking-tight text-[var(--color-hz-navy)] text-[15px] hidden sm:block">Trade Easy</span>
         </div>
-        <div className="flex gap-1 border-r border-white/10 pr-4 mr-2">
-          <Link
-            href="/"
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 text-gray-400 hover:text-white"
-          >
-            <Coins className="w-4 h-4" />
-            Mint
-          </Link>
-          <Link
-            href="/"
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 text-gray-400 hover:text-white"
-          >
-            <ArrowLeftRight className="w-4 h-4" />
-            Swap
-          </Link>
-          <Link
-            href="/"
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 text-gray-400 hover:text-white"
-          >
-            <Bot className="w-4 h-4" />
-            AI Agent
-          </Link>
-          <Link
-            href="/"
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 text-gray-400 hover:text-white"
-          >
-            <Coins className="w-4 h-4" />
-            Faucet
-          </Link>
-          <div className="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.3)]">
+        <div className="flex gap-0.5 border-l border-r border-[var(--color-border)] px-2 mx-1">
+          <NavLink href="/" icon={<ArrowLeftRight className="w-4 h-4" />} label="Swap" />
+          <NavLink href="/" icon={<Bot className="w-4 h-4" />} label="AI Agent" />
+          <NavLink href="/" icon={<Droplets className="w-4 h-4" />} label="Faucet" />
+          <NavLink href="/" icon={<Coins className="w-4 h-4" />} label="Mint" />
+          <span className="px-3.5 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 bg-[var(--color-hz-gold)]/20 text-[var(--color-hz-navy)]">
             <User className="w-4 h-4" />
-            Profile
-          </div>
+            <span className="hidden sm:inline">Profile</span>
+          </span>
         </div>
         <CustomConnectButton />
       </nav>
 
-      {/* Main Container */}
       <div className="w-full max-w-4xl z-10 flex flex-col gap-8 animate-fadeIn">
-        
-        {/* Identity Header */}
-        <div className="glass-card p-8 relative overflow-hidden flex flex-col sm:flex-row items-center gap-6 border border-white/10">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent z-0 pointer-events-none"></div>
-          
-          <div 
-            className="w-24 h-24 rounded-full border-4 border-[#0B0C10] shadow-[0_0_30px_rgba(45,212,191,0.3)] z-10 flex-shrink-0"
-            style={gradientStyle}
-          ></div>
-          
-          <div className="z-10 text-center sm:text-left flex-1">
+        {/* Identity */}
+        <div className="card p-8 flex flex-col sm:flex-row items-center gap-6">
+          <div className="w-24 h-24 rounded-full border-4 border-white shadow-md flex-shrink-0" style={avatarStyle} />
+          <div className="text-center sm:text-left flex-1">
             {isConnected ? (
               <>
                 {isEditing ? (
                   <div className="flex items-center gap-2 mb-2 justify-center sm:justify-start">
-                    <input 
-                      type="text" 
+                    <input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       placeholder="Enter new username"
-                      className="bg-black/40 border border-neon-teal/50 rounded-lg px-3 py-1 text-white focus:outline-none focus:ring-1 focus:ring-neon-teal"
+                      className="field max-w-xs"
                       autoFocus
                     />
-                    <button 
-                      onClick={handleSaveUsername}
-                      className="p-1.5 bg-neon-teal/20 text-neon-teal rounded-lg hover:bg-neon-teal hover:text-black transition-colors"
-                      title="Save"
-                    >
+                    <button onClick={handleSaveUsername} className="p-2 bg-[var(--color-hz-gold)]/20 text-[var(--color-hz-navy)] rounded-lg" title="Save">
                       <Check className="w-4 h-4" />
                     </button>
-                    <button 
-                      onClick={() => setIsEditing(false)}
-                      className="p-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
-                      title="Cancel"
-                    >
+                    <button onClick={() => setIsEditing(false)} className="p-2 bg-[var(--color-hz-danger)]/10 text-[var(--color-hz-danger)] rounded-lg" title="Cancel">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 ) : (
-                  <h1 className="text-3xl font-bold text-white tracking-wide mb-1 text-glow-white flex items-center justify-center sm:justify-start gap-3 group">
+                  <h1 className="text-3xl font-bold mb-1 flex items-center justify-center sm:justify-start gap-3 group">
                     {displayUsername}
-                    <button 
-                      onClick={() => { setEditName(username); setIsEditing(true); }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/10 rounded-full"
-                      title="Edit Username"
+                    <button
+                      onClick={() => {
+                        setEditName(username);
+                        setIsEditing(true);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-[var(--color-surface-2)] rounded-full"
+                      title="Edit username"
                     >
-                      <Edit2 className="w-4 h-4 text-gray-400 hover:text-neon-teal" />
+                      <Edit2 className="w-4 h-4 text-[var(--color-ink-3)]" />
                     </button>
                   </h1>
                 )}
-                <div className="flex items-center justify-center sm:justify-start gap-2 text-gray-400 font-mono text-sm bg-black/30 px-3 py-1 w-fit mx-auto sm:mx-0 rounded-full border border-white/5">
-                  <Wallet className="w-4 h-4 text-neon-teal" />
-                  {x1Id || shortAddress}
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-[var(--color-ink-2)] font-mono text-sm bg-[var(--color-surface-2)] px-3 py-1 w-fit mx-auto sm:mx-0 rounded-full border border-[var(--color-border)]">
+                  <Wallet className="w-4 h-4 text-[var(--color-hz-gold-deep)]" />
+                  {shortAddress}
                 </div>
               </>
             ) : (
               <>
-                <h1 className="text-2xl font-bold text-white mb-2">Connect Your Wallet</h1>
-                <p className="text-gray-400 text-sm">Please connect your wallet to view your identity and assets.</p>
+                <h1 className="text-2xl font-bold mb-2">Connect Your Wallet</h1>
+                <p className="text-[var(--color-ink-2)] text-sm">Connect your wallet to view your identity and assets.</p>
               </>
             )}
           </div>
         </div>
 
-        {/* Wallet Balances Metric Grid */}
+        {/* Balances */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* X1 Balance */}
-          <div className="glass-card p-6 flex flex-col gap-4 border border-white/5 hover:border-white/10 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">X1T Balance</span>
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                <span className="font-bold text-white text-xs tracking-tighter">X1T</span>
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-white">
-                {balanceData ? Number(balanceData.formatted).toFixed(2) : '0.00'}
-              </span>
-              <span className="text-sm text-gray-500">X1T</span>
-            </div>
-          </div>
-
-          {/* $TERA Balance */}
-          <div className="glass-card p-6 flex flex-col gap-4 border border-white/5 hover:border-neon-purple/30 transition-colors group relative overflow-hidden">
-            <div className="absolute inset-0 bg-neon-purple/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Native Token</span>
-              <div className="w-8 h-8 rounded-full bg-neon-purple/10 flex items-center justify-center border border-neon-purple/20">
-                <Sparkles className="w-4 h-4 text-neon-purple" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10">
-              <span className="text-3xl font-bold text-white group-hover:text-glow-purple transition-shadow">
-                {isConnected && teraBalance ? Number(teraBalance.formatted).toFixed(2) : '0.00'}
-              </span>
-              <span className="text-sm text-neon-purple">$TERA</span>
-            </div>
-          </div>
-
-          {/* USDC Balance */}
-          <div className="glass-card p-6 flex flex-col gap-4 border border-white/5 hover:border-blue-500/30 transition-colors group relative overflow-hidden">
-            <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Stablecoin</span>
-              <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                <span className="font-bold text-blue-400 text-xs">$</span>
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10">
-              <span className="text-3xl font-bold text-white group-hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-shadow">
-                {isConnected && usdcBalance !== undefined ? Number(formatUnits(usdcBalance as bigint, 6)).toFixed(2) : "0.00"}
-              </span>
-              <span className="text-sm text-blue-400">USDC</span>
-            </div>
-          </div>
+          <BalanceCard
+            label="ETH Balance"
+            value={ethBalance ? Number(ethBalance.formatted).toFixed(4) : "0.0000"}
+            unit="ETH"
+            badge="Gas token"
+          />
+          <BalanceCard
+            label="Project Token"
+            value={isConnected && teraBalance ? Number(teraBalance.formatted).toFixed(2) : "0.00"}
+            unit="TERA"
+            badge="TERA"
+          />
+          <BalanceCard
+            label="Stablecoin"
+            value={isConnected && usdcBalance !== undefined ? Number(formatUnits(usdcBalance as bigint, 6)).toFixed(2) : "0.00"}
+            unit="USDC"
+            badge="USDC"
+          />
         </div>
 
-        {/* My Deployed Assets */}
-        <div className="glass-card p-8 flex flex-col gap-6">
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
-            <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
-              <Layers className="w-5 h-5 text-neon-teal" />
+        {/* Deployed assets */}
+        <div className="card p-8 flex flex-col gap-6">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Layers className="w-5 h-5 text-[var(--color-hz-gold-deep)]" />
               My Deployed Assets
             </h2>
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-black/40 px-3 py-1 rounded-full border border-white/5">
-              <Activity className="w-3 h-3 text-neon-purple" />
-              Live Network State
+            <div className="flex items-center gap-1.5 text-xs text-[var(--color-ink-2)] bg-[var(--color-surface-2)] px-3 py-1 rounded-full border border-[var(--color-border)]">
+              <Activity className="w-3 h-3 text-[var(--color-hz-green)]" />
+              Live network state
             </div>
           </div>
 
           {isConnected ? (
             Array.isArray(userTokens) && userTokens.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {(userTokens as string[]).map((tokenAddr, idx) => (
-                  <div key={idx} className="bg-black/30 border border-white/5 rounded-xl p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-gray-400 uppercase tracking-wider font-semibold">HTS Token</span>
-                      <span className="font-mono text-sm text-white group-hover:text-neon-teal transition-colors">
-                        {tokenAddr}
-                      </span>
+                {(userTokens as string[]).map((t, i) => (
+                  <div key={i} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl p-4 flex items-center justify-between">
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <span className="text-xs text-[var(--color-ink-3)] uppercase tracking-wider font-semibold">Token</span>
+                      <span className="font-mono text-sm truncate">{t}</span>
                     </div>
-                    <a 
-                      href={`https://hashscan.io/testnet/token/${tokenAddr}`}
+                    <a
+                      href={`${EXPLORER}/token/${t}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-neon-teal/20 hover:text-neon-teal transition-all border border-white/10 hover:border-neon-teal/30"
-                      title="View on Hashscan"
+                      className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-[var(--color-border)] hover:border-[var(--color-hz-gold-deep)] transition-colors flex-shrink-0"
+                      title="View on explorer"
                     >
-                      <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-neon-teal transition-colors" />
+                      <ExternalLink className="w-4 h-4 text-[var(--color-ink-2)]" />
                     </a>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-2">
-                  <Coins className="w-6 h-6 text-gray-500" />
+                <div className="w-16 h-16 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center mb-1">
+                  <Coins className="w-6 h-6 text-[var(--color-ink-3)]" />
                 </div>
-                <h3 className="text-lg font-medium text-white">No Assets Found</h3>
-                <p className="text-sm text-gray-400 max-w-sm">You haven't deployed any HTS tokens using Trade Easy yet.</p>
-                <Link href="/" className="mt-2 px-6 py-2 bg-neon-teal/20 text-neon-teal border border-neon-teal/30 rounded-full text-sm font-semibold hover:bg-neon-teal hover:text-black transition-all hover:shadow-[0_0_20px_rgba(45,212,191,0.4)]">
-                  Mint Your First Token
+                <h3 className="text-lg font-medium">No assets found</h3>
+                <p className="text-sm text-[var(--color-ink-2)] max-w-sm">You haven&apos;t deployed any tokens with Trade Easy yet.</p>
+                <Link href="/" className="btn-gold mt-2 px-6 py-2 text-sm rounded-full">
+                  Deploy your first token
                 </Link>
               </div>
             )
           ) : (
             <div className="flex flex-col items-center justify-center py-10">
-              <p className="text-sm text-gray-400">Connect your wallet to view deployed assets.</p>
+              <p className="text-sm text-[var(--color-ink-2)]">Connect your wallet to view deployed assets.</p>
             </div>
           )}
         </div>
-
       </div>
     </main>
+  );
+}
+
+function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </Link>
+  );
+}
+
+function BalanceCard({ label, value, unit, badge }: { label: string; value: string; unit: string; badge: string }) {
+  return (
+    <div className="card p-6 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] uppercase tracking-wider bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-ink-2)] px-2 py-0.5 rounded-full">
+          {badge}
+        </span>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-3xl font-bold">{value}</span>
+        <span className="text-sm text-[var(--color-ink-3)]">{unit}</span>
+      </div>
+    </div>
   );
 }

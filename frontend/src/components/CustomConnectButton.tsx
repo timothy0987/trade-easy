@@ -1,62 +1,27 @@
 "use client";
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useEffect, useState } from "react";
-import { fetchX1AccountId } from "@/utils/hedera";
 import { Wallet } from "lucide-react";
 
 export const CustomConnectButton = () => {
   return (
     <ConnectButton.Custom>
-      {({
-        account,
-        chain,
-        openAccountModal,
-        openChainModal,
-        openConnectModal,
-        authenticationStatus,
-        mounted,
-      }) => {
+      {({ account, chain, openAccountModal, openChainModal, openConnectModal, authenticationStatus, mounted }) => {
         const ready = mounted && authenticationStatus !== "loading";
         const connected =
-          ready &&
-          account &&
-          chain &&
-          (!authenticationStatus || authenticationStatus === "authenticated");
-
-        const [x1Id, setX1Id] = useState<string | null>(null);
-
-        useEffect(() => {
-          if (connected && account?.address) {
-            fetchX1AccountId(account.address).then((id) => {
-              if (id) {
-                setX1Id(id);
-              }
-            });
-          } else {
-            setX1Id(null);
-          }
-        }, [connected, account?.address]);
+          ready && account && chain && (!authenticationStatus || authenticationStatus === "authenticated");
 
         return (
           <div
             {...(!ready && {
               "aria-hidden": true,
-              style: {
-                opacity: 0,
-                pointerEvents: "none",
-                userSelect: "none",
-              },
+              style: { opacity: 0, pointerEvents: "none", userSelect: "none" },
             })}
           >
             {(() => {
               if (!connected) {
                 return (
-                  <button
-                    onClick={openConnectModal}
-                    type="button"
-                    className="bg-neon-teal text-black px-4 py-2 rounded-full font-semibold text-sm hover:shadow-[0_0_15px_rgba(45,212,191,0.5)] transition-all"
-                  >
+                  <button onClick={openConnectModal} type="button" className="btn-gold px-4 py-2 text-sm rounded-full">
                     Connect Wallet
                   </button>
                 );
@@ -67,7 +32,8 @@ export const CustomConnectButton = () => {
                   <button
                     onClick={openChainModal}
                     type="button"
-                    className="bg-red-500 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                    className="px-4 py-2 rounded-full font-semibold text-sm text-white"
+                    style={{ background: "var(--color-hz-danger)" }}
                   >
                     Wrong network
                   </button>
@@ -75,16 +41,14 @@ export const CustomConnectButton = () => {
               }
 
               return (
-                <div style={{ display: "flex", gap: 12 }}>
-                  <button
-                    onClick={openAccountModal}
-                    type="button"
-                    className="bg-black/40 border border-white/10 px-4 py-2 rounded-full text-white text-sm hover:border-neon-teal/50 transition-colors flex items-center gap-2"
-                  >
-                    <Wallet className="w-4 h-4 text-neon-teal" />
-                    {x1Id || (account.address ? `${account.address.slice(0,6)}...${account.address.slice(-4)}` : "Loading...")}
-                  </button>
-                </div>
+                <button
+                  onClick={openAccountModal}
+                  type="button"
+                  className="bg-[var(--color-surface-2)] border border-[var(--color-border)] px-4 py-2 rounded-full text-[var(--color-ink)] text-sm hover:border-[var(--color-hz-gold-deep)] transition-colors flex items-center gap-2"
+                >
+                  <Wallet className="w-4 h-4 text-[var(--color-hz-gold-deep)]" />
+                  {account.address ? `${account.address.slice(0, 6)}…${account.address.slice(-4)}` : "Loading…"}
+                </button>
               );
             })()}
           </div>

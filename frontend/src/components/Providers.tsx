@@ -1,87 +1,58 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import '@rainbow-me/rainbowkit/styles.css';
-import { getDefaultConfig, RainbowKitProvider, darkTheme, getWalletConnectConnector } from '@rainbow-me/rainbowkit';
+import { getDefaultConfig, RainbowKitProvider, lightTheme } from '@rainbow-me/rainbowkit';
 import { metaMaskWallet, rainbowWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
 import { WagmiProvider, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
 import { defineChain } from 'viem';
 
-export const x1Testnet = defineChain({
-  id: 204005, // Updated to Thirdweb X1 Testnet Chain ID
-  name: 'X1 Network Testnet',
-  network: 'x1-testnet',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'X1 Test Token',
-    symbol: 'X1T',
-  },
+// Horizen — EVM-native L3 on Base for private onchain finance. Gas token: ETH.
+// Verify against https://chainlist.org/chain/845320009 before mainnet.
+export const horizenTestnet = defineChain({
+  id: 845320009,
+  name: 'Horizen Testnet',
+  network: 'horizen-testnet',
+  nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
   rpcUrls: {
-    default: { http: ['https://x1-testnet.xen.network', 'https://204005.rpc.thirdweb.com'] }, 
-    public: { http: ['https://x1-testnet.xen.network', 'https://204005.rpc.thirdweb.com'] },
+    default: { http: ['https://horizen-rpc-testnet.appchain.base.org'] },
+    public: { http: ['https://horizen-rpc-testnet.appchain.base.org'] },
   },
   blockExplorers: {
-    default: { name: 'X1 Explorer', url: 'https://explorer.x1-testnet.xen.network' },
+    default: { name: 'Blockscout', url: 'https://horizen-explorer-testnet.appchain.base.org' },
   },
-});
-
-const hashpackWallet = ({ projectId }: { projectId: string }) => ({
-  id: 'hashpack',
-  name: 'HashPack',
-  iconUrl: 'https://www.hashpack.app/favicon.ico',
-  iconBackground: '#0b1d3a',
-  downloadUrls: {
-    chrome: 'https://chrome.google.com/webstore/detail/hashpack/jggofhoiebckgbifbhahahbgedhcphfo',
-    android: 'https://play.google.com/store/apps/details?id=app.hashpack.wallet',
-    ios: 'https://apps.apple.com/us/app/hashpack-wallet/id1612848553',
-  },
-  createConnector: getWalletConnectConnector({
-    projectId,
-  }),
+  testnet: true,
 });
 
 const config = getDefaultConfig({
   appName: 'Trade Easy',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '148d423984d72044810696b994464c9d',
-  chains: [x1Testnet],
+  chains: [horizenTestnet],
   transports: {
-    [x1Testnet.id]: http(),
+    [horizenTestnet.id]: http(),
   },
   wallets: [
     {
       groupName: 'Recommended',
-      wallets: [
-        hashpackWallet,
-        metaMaskWallet,
-        rainbowWallet,
-        walletConnectWallet,
-      ],
+      wallets: [metaMaskWallet, rainbowWallet, walletConnectWallet],
     },
   ],
+  ssr: true,
 });
 
 const queryClient = new QueryClient();
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    // Inject Buffer to window for Web3 wallet compatibility
-    if (typeof window !== "undefined") {
-      const { Buffer } = require("buffer");
-      window.Buffer = window.Buffer || Buffer;
-    }
-  }, []);
-
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider 
-          theme={darkTheme({
-            accentColor: '#a855f7',
-            accentColorForeground: 'white',
+        <RainbowKitProvider
+          theme={lightTheme({
+            accentColor: '#fecb17',
+            accentColorForeground: '#030e24',
             borderRadius: 'large',
-            overlayBlur: 'large',
+            fontStack: 'system',
           })}
         >
           {children}
