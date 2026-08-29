@@ -16,11 +16,8 @@ import {
   AlertTriangle,
   Send,
   Landmark,
-  Coins,
   ArrowLeftRight,
-  Bot,
   Droplets,
-  User,
 } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
@@ -77,15 +74,11 @@ export default function VaultPage() {
           <span className="font-extrabold tracking-tight text-[var(--color-hz-navy)] text-[15px] hidden sm:block">Trade Easy</span>
         </div>
         <div className="flex gap-0.5 border-l border-r border-[var(--color-border)] px-2 mx-1">
-          <NavLink href="/" icon={<ArrowLeftRight className="w-4 h-4" />} label="Swap" />
-          <NavLink href="/" icon={<Bot className="w-4 h-4" />} label="AI Agent" />
-          <NavLink href="/" icon={<Droplets className="w-4 h-4" />} label="Faucet" />
-          <NavLink href="/" icon={<Coins className="w-4 h-4" />} label="Mint" />
           <span className="px-3.5 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 bg-[var(--color-hz-gold)]/20 text-[var(--color-hz-navy)]">
             <Vault className="w-4 h-4" />
             <span className="hidden sm:inline">Vault</span>
           </span>
-          <NavLink href="/profile" icon={<User className="w-4 h-4" />} label="Profile" />
+          <NavLink href="/trade" icon={<ArrowLeftRight className="w-4 h-4" />} label="Trade" />
         </div>
         <CustomConnectButton />
       </nav>
