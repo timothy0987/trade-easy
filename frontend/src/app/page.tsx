@@ -37,8 +37,8 @@ const EXPLORER = "https://horizen-explorer-testnet.appchain.base.org";
 const A = addresses as Record<string, string>;
 
 // External testnet-funding resources
-const ZEN_FAUCET_URL = "https://blog.horizen.io/how-to-get-testzen/";
-const GAS_BRIDGE_URL = "https://horizen-2-docs.horizen.io/darkswap/how-to-bridge/";
+const ZEN_FAUCET_URL = "https://hub-testnet.horizen.io/";
+const GAS_BRIDGE_URL = "https://horizen-2-docs.horizen.io/horizen-chain/network/testnet";
 
 // Native gas sentinel — Horizen's gas token is ETH.
 const NATIVE = "ETH";
