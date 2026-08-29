@@ -125,6 +125,45 @@ function TokenSelector({
 /*  Nav                                                                */
 /* ------------------------------------------------------------------ */
 
+function ZenPriceBadge() {
+  const [p, setP] = useState<{ usd: number; chg: number | null } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=zencash&vs_currencies=usd&include_24hr_change=true"
+        );
+        const j = await r.json();
+        if (alive && j?.zencash?.usd) setP({ usd: j.zencash.usd, chg: j.zencash.usd_24h_change ?? null });
+      } catch {
+        /* keep last value / stay hidden until first success */
+      }
+    };
+    load();
+    const i = setInterval(load, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(i);
+    };
+  }, []);
+  if (!p) return null;
+  const up = (p.chg ?? 0) >= 0;
+  return (
+    <span
+      title="ZEN market price (CoinGecko). The testnet tZEN token mirrors this asset."
+      className="text-[11px] font-mono font-semibold text-[var(--color-ink-2)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2.5 py-1 rounded-lg flex items-center gap-1.5"
+    >
+      ZEN&nbsp;${p.usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      {p.chg != null && (
+        <span className={up ? "text-[var(--color-hz-green)]" : "text-[var(--color-hz-danger)]"}>
+          {up ? "▲" : "▼"} {Math.abs(p.chg).toFixed(1)}%
+        </span>
+      )}
+    </span>
+  );
+}
+
 function NavTab({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
     <button
@@ -319,6 +358,7 @@ export default function TradePage() {
           <span className="text-[11px] font-mono font-semibold text-[var(--color-ink-2)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2.5 py-1 rounded-lg">
             Horizen&nbsp;<span className="text-[var(--color-hz-gold-deep)]">Testnet</span>
           </span>
+          <ZenPriceBadge />
         </div>
 
         <CustomConnectButton />
