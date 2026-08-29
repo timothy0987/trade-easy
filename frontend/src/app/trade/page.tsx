@@ -11,7 +11,7 @@ import {
   useSwitchChain,
 } from "wagmi";
 import { parseEther, erc20Abi } from "viem";
-import { ArrowLeftRight, Droplets, Loader2, ExternalLink, CheckCircle2, Vault, ChevronRight } from "lucide-react";
+import { ArrowLeftRight, Droplets, Loader2, ExternalLink, CheckCircle2, Vault, ChevronRight, User } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
@@ -368,12 +368,16 @@ export default function TradePage() {
           </Link>
           <NavTab active={tab === "swap"} onClick={() => setTab("swap")} icon={<ArrowLeftRight className="w-4 h-4" />} label="Swap" />
           <NavTab active={tab === "faucet"} onClick={() => setTab("faucet")} icon={<Droplets className="w-4 h-4" />} label="Faucet" />
+          <Link
+            href="/profile"
+            className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"
+          >
+            <User className="w-4 h-4" />
+            <span className="hidden sm:inline">Profile</span>
+          </Link>
         </div>
 
         <div className="hidden md:flex items-center gap-2 border-r border-[var(--color-border)] pr-3 mr-1">
-          <span className="text-[11px] font-mono font-semibold text-[var(--color-ink-2)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2.5 py-1 rounded-lg">
-            Horizen&nbsp;<span className="text-[var(--color-hz-gold-deep)]">Testnet</span>
-          </span>
           <ZenPriceBadge />
         </div>
 
