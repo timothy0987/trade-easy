@@ -78,7 +78,7 @@ function TokenSelector({
     : isUsdc
     ? "USDC"
     : isZen
-    ? "ZEN"
+    ? "tZEN"
     : isCustom
     ? `${value.slice(0, 10)}…`
     : placeholder;
@@ -131,8 +131,8 @@ function TokenSelector({
           )}
           {zen && (
             <Row onClick={() => { onChange(zen); setOpen(false); }}>
-              <span>ZEN</span>
-              <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-green)]/15 text-[var(--color-hz-green)] px-2 py-0.5 rounded-full">Horizen token</span>
+              <span>tZEN</span>
+              <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-green)]/15 text-[var(--color-hz-green)] px-2 py-0.5 rounded-full">Testnet ZEN</span>
             </Row>
           )}
           <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
