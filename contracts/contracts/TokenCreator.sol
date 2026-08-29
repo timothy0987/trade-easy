@@ -1,150 +1,78 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-interface IHederaTokenService {
-    struct TokenKey {
-        uint256 keyType;
-        KeyValue keyValue;
-    }
+import {TradeEasyToken} from "./TradeEasyToken.sol";
 
-    struct KeyValue {
-        bool inheritAccountKey;
-        address contractId;
-        bytes ed25519;
-        bytes ECDSA_secp256k1;
-        address delegatableContractId;
-    }
-
-    struct HederaToken {
-        string name;
-        string symbol;
-        address treasury;
-        string memo;
-        bool tokenSupplyType; // true for FINITE, false for INFINITE
-        int64 maxSupply;
-        bool freezeDefault;
-        TokenKey[] tokenKeys;
-        Expiry expiry;
-    }
-
-    struct Expiry {
-        uint32 second;
-        address autoRenewAccount;
-        uint32 autoRenewPeriod;
-    }
-
-    function createFungibleToken(
-        HederaToken memory token,
-        int64 initialTotalSupply,
-        int32 decimals
-    ) external payable returns (int256 responseCode, address tokenAddress);
-
-    function mintToken(
-        address token,
-        int64 amount,
-        bytes[] calldata metadata
-    ) external returns (int256 responseCode, uint64 newTotalSupply, int64[] memory serialNumbers);
-}
-
+/**
+ * @title TokenCreator
+ * @notice Plain-EVM ERC20 factory for Horizen. Replaces the former Hedera HTS-precompile
+ *         wrapper of the same name (keeps the createToken / getUserTokens / mintAdditional
+ *         interface so the frontend and agent route are unchanged).
+ *
+ *         Each createToken deploys a standard {TradeEasyToken}; the full initial supply
+ *         goes to the caller. Only the original creator can mint more, and only via this
+ *         factory. An optional creation fee (msg.value) is forwarded to `feeRecipient`.
+ */
 contract TokenCreator {
-    // Address of the Hedera Token Service precompile
-    address public constant HTS_ADDRESS = address(0x167);
-    IHederaTokenService constant hts = IHederaTokenService(HTS_ADDRESS);
+    mapping(address => address[]) public userTokens; // creator => tokens
+    mapping(address => address) public tokenCreator; // token => creator
+    address[] public allTokens;
 
-    // Track tokens created by each user
-    mapping(address => address[]) public userTokens;
-    
+    address public feeRecipient;
+
     event TokenCreated(address indexed creator, address indexed tokenAddress, string name, string symbol);
-    event TokensMinted(address indexed tokenAddress, uint64 amount, uint64 newTotalSupply);
+    event TokensMinted(address indexed tokenAddress, uint256 amount, uint256 newTotalSupply);
 
-    /**
-     * @notice Creates a new fungible Hedera native token
-     */
-    function createToken(
-        string memory name,
-        string memory symbol,
-        int64 initialSupply,
-        int32 decimals
-    ) external payable returns (address) {
-        // Prepare the supply key so the contract itself can mint/burn
-        IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](1);
-        keys[0] = IHederaTokenService.TokenKey({
-            keyType: 2, // SUPPLY KEY
-            keyValue: IHederaTokenService.KeyValue({
-                inheritAccountKey: false,
-                contractId: address(this),
-                ed25519: new bytes(0),
-                ECDSA_secp256k1: new bytes(0),
-                delegatableContractId: address(0)
-            })
-        });
+    error NotTokenCreator();
 
-        // Set up the expiry parameters
-        IHederaTokenService.Expiry memory expiry = IHederaTokenService.Expiry({
-            second: 0,
-            autoRenewAccount: address(0),
-            autoRenewPeriod: 7890000 // ~3 months in seconds
-        });
-
-        // Create the token struct
-        IHederaTokenService.HederaToken memory token = IHederaTokenService.HederaToken({
-            name: name,
-            symbol: symbol,
-            treasury: address(this), // The contract acts as treasury to facilitate AMM seeding
-            memo: "Created via Trade Easy",
-            tokenSupplyType: false, // INFINITE supply
-            maxSupply: 0,
-            freezeDefault: false,
-            tokenKeys: keys,
-            expiry: expiry
-        });
-
-        // Call the precompile (attaching HBAR payment for creation fee)
-        (int256 responseCode, address tokenAddress) = hts.createFungibleToken{value: msg.value}(
-            token,
-            initialSupply,
-            decimals
-        );
-
-        require(responseCode == 22, "HTS: Token creation failed");
-        
-        userTokens[msg.sender].push(tokenAddress);
-        emit TokenCreated(msg.sender, tokenAddress, name, symbol);
-        
-        return tokenAddress;
+    constructor() {
+        feeRecipient = msg.sender;
     }
 
-    /**
-     * @notice Mints additional supply of a token created by this contract
-     */
-    function mintAdditional(address tokenAddress, int64 amount) external returns (bool) {
-        bytes[] memory metadata = new bytes[](0);
-        
-        // Call the precompile to mint additional tokens
-        (int256 responseCode, uint64 newTotalSupply, ) = hts.mintToken(
-            tokenAddress,
-            amount,
-            metadata
-        );
+    /// @param initialSupply whole-token amount (scaled by `decimals` at mint time)
+    function createToken(
+        string calldata name,
+        string calldata symbol,
+        uint256 initialSupply,
+        uint8 decimals
+    ) external payable returns (address) {
+        uint256 raw = initialSupply * (10 ** uint256(decimals));
+        TradeEasyToken token = new TradeEasyToken(name, symbol, decimals, raw, msg.sender, address(this));
+        address addr = address(token);
 
-        require(responseCode == 22, "HTS: Token minting failed");
-        
-        emit TokensMinted(tokenAddress, uint64(amount), newTotalSupply);
+        userTokens[msg.sender].push(addr);
+        tokenCreator[addr] = msg.sender;
+        allTokens.push(addr);
+
+        if (msg.value > 0) {
+            (bool ok, ) = feeRecipient.call{value: msg.value}("");
+            require(ok, "fee transfer failed");
+        }
+
+        emit TokenCreated(msg.sender, addr, name, symbol);
+        return addr;
+    }
+
+    /// @notice Mint more of a token you created. `amount` is in whole tokens.
+    function mintAdditional(address token, uint256 amount) external returns (bool) {
+        if (tokenCreator[token] != msg.sender) revert NotTokenCreator();
+        TradeEasyToken t = TradeEasyToken(token);
+        uint256 raw = amount * (10 ** uint256(t.decimals()));
+        t.factoryMint(msg.sender, raw);
+        emit TokensMinted(token, amount, t.totalSupply());
         return true;
     }
 
-    /**
-     * @notice Get tokens created by a specific user
-     */
     function getUserTokens(address user) external view returns (address[] memory) {
         return userTokens[user];
     }
 
-    /**
-     * @notice Allows the contract to transfer tokens out of its treasury
-     */
-    function transferOut(address token, address to, uint256 amount) external {
-        (bool success, bytes memory result) = token.call(abi.encodeWithSignature("transfer(address,uint256)", to, amount));
-        require(success, "Transfer out failed");
+    function allTokensLength() external view returns (uint256) {
+        return allTokens.length;
+    }
+
+    function setFeeRecipient(address r) external {
+        require(msg.sender == feeRecipient, "not fee recipient");
+        feeRecipient = r;
     }
 }

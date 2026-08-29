@@ -1,5 +1,15 @@
 [
   {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "NotTokenCreator",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -41,28 +51,47 @@
       },
       {
         "indexed": false,
-        "internalType": "uint64",
+        "internalType": "uint256",
         "name": "amount",
-        "type": "uint64"
+        "type": "uint256"
       },
       {
         "indexed": false,
-        "internalType": "uint64",
+        "internalType": "uint256",
         "name": "newTotalSupply",
-        "type": "uint64"
+        "type": "uint256"
       }
     ],
     "name": "TokensMinted",
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "HTS_ADDRESS",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "allTokens",
     "outputs": [
       {
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "allTokensLength",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -81,14 +110,14 @@
         "type": "string"
       },
       {
-        "internalType": "int64",
+        "internalType": "uint256",
         "name": "initialSupply",
-        "type": "int64"
+        "type": "uint256"
       },
       {
-        "internalType": "int32",
+        "internalType": "uint8",
         "name": "decimals",
-        "type": "int32"
+        "type": "uint8"
       }
     ],
     "name": "createToken",
@@ -100,6 +129,19 @@
       }
     ],
     "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeRecipient",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -125,13 +167,13 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "tokenAddress",
+        "name": "token",
         "type": "address"
       },
       {
-        "internalType": "int64",
+        "internalType": "uint256",
         "name": "amount",
-        "type": "int64"
+        "type": "uint256"
       }
     ],
     "name": "mintAdditional",
@@ -149,23 +191,32 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "token",
+        "name": "r",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
       }
     ],
-    "name": "transferOut",
+    "name": "setFeeRecipient",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "tokenCreator",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
