@@ -36,6 +36,7 @@ const EXPLORER = "https://explorer-testnet.horizen.io";
 const ERC20_ABI = [
   { type: "function", name: "allowance", stateMutability: "view", inputs: [{ name: "o", type: "address" }, { name: "s", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "s", type: "address" }, { name: "a", type: "uint256" }], outputs: [{ type: "bool" }] },
+  { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [] },
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "a", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
   { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
@@ -338,6 +339,17 @@ function DepositorView() {
       await writeContractAsync({ address: VAULT, abi: VAULT_ABI, functionName: "claimRedeem", args: [BigInt(id)] });
     });
 
+  const mintTest = () =>
+    run("mint", async () => {
+      if (!d.asset) return;
+      await writeContractAsync({
+        address: d.asset,
+        abi: ERC20_ABI,
+        functionName: "mint",
+        args: [address!, parseUnits("10000", dec)],
+      });
+    });
+
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -360,8 +372,17 @@ function DepositorView() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card p-6 flex flex-col gap-4">
           <h3 className="font-bold flex items-center gap-2"><ArrowDownToLine className="w-5 h-5 text-[var(--color-hz-gold-deep)]" /> Deposit</h3>
-          <div className="text-xs text-[var(--color-ink-3)]">
-            Wallet: {fmt(d.userAssetBal, dec, 2)} {d.assetSymbol} · Cap {fmt(d.depositCap, dec, 0)}
+          <div className="flex items-center justify-between gap-2 text-xs text-[var(--color-ink-3)]">
+            <span>Wallet: {fmt(d.userAssetBal, dec, 2)} {d.assetSymbol} · Cap {fmt(d.depositCap, dec, 0)}</span>
+            <button
+              onClick={mintTest}
+              disabled={!isConnected || busy === "mint"}
+              className="shrink-0 font-semibold text-[var(--color-hz-blue)] hover:underline disabled:opacity-40 flex items-center gap-1"
+              title={`Mint 10,000 test ${d.assetSymbol} to your wallet (testnet mock token)`}
+            >
+              {busy === "mint" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Droplets className="w-3 h-3" />}
+              Get test {d.assetSymbol}
+            </button>
           </div>
           <input value={depAmt} onChange={(e) => setDepAmt(e.target.value)} placeholder={`Amount in ${d.assetSymbol}`} inputMode="decimal" className="field" />
           <TxButton onClick={deposit} busy={busy === "deposit"} disabled={!isConnected || !depAmt || d.paused || d.emergency}>
