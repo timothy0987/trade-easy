@@ -1,6 +1,6 @@
 {
   "network": "horizenTestnet",
-  "chainId": 845320009,
+  "chainId": 2651420,
   "_note": "Contract addresses below are stale (from the Hedera/X1 deploy). Re-deploy to Horizen and overwrite.",
   "TokenCreator": "0x3035e572ecA43a6008d95b11F24CE69CD232d861",
   "TradeEasyFactory": "0x1825BD4ef0603B3c0A6800500f6A803EDA6D77a1",

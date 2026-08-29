@@ -31,7 +31,7 @@ import RegistryAbiJson from "@/contracts/AgentRegistry.json";
 const VAULT_ABI = VaultAbiJson as Abi;
 const REGISTRY_ABI = RegistryAbiJson as Abi;
 const A = addresses as Record<string, string>;
-const EXPLORER = "https://horizen-explorer-testnet.appchain.base.org";
+const EXPLORER = "https://explorer-testnet.horizen.io";
 
 const ERC20_ABI = [
   { type: "function", name: "allowance", stateMutability: "view", inputs: [{ name: "o", type: "address" }, { name: "s", type: "address" }], outputs: [{ type: "uint256" }] },

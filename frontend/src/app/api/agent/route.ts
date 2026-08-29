@@ -21,7 +21,7 @@ const ALLOWED_CONTRACTS = [
 ].filter(Boolean);
 
 const PROVIDER_URL =
-  process.env.HORIZEN_RPC_URL || "https://horizen-rpc-testnet.appchain.base.org";
+  process.env.HORIZEN_RPC_URL || "https://horizen-testnet.rpc.caldera.xyz/http";
 
 type Parsed = {
   action: "mint" | "swap" | "balance" | "unknown";

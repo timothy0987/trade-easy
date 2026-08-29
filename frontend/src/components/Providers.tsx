@@ -8,19 +8,19 @@ import { WagmiProvider, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { defineChain } from 'viem';
 
-// Horizen — EVM-native L3 on Base for private onchain finance. Gas token: ETH.
-// Verify against https://chainlist.org/chain/845320009 before mainnet.
+// Horizen Testnet — runs on Base Sepolia. Gas token: ETH.
+// Params per https://horizen-2-docs.horizen.io/horizen-chain/network/testnet
 export const horizenTestnet = defineChain({
-  id: 845320009,
+  id: 2651420,
   name: 'Horizen Testnet',
   network: 'horizen-testnet',
   nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
   rpcUrls: {
-    default: { http: ['https://horizen-rpc-testnet.appchain.base.org'] },
-    public: { http: ['https://horizen-rpc-testnet.appchain.base.org'] },
+    default: { http: ['https://horizen-testnet.rpc.caldera.xyz/http'] },
+    public: { http: ['https://horizen-testnet.rpc.caldera.xyz/http'] },
   },
   blockExplorers: {
-    default: { name: 'Blockscout', url: 'https://horizen-explorer-testnet.appchain.base.org' },
+    default: { name: 'Horizen Explorer', url: 'https://explorer-testnet.horizen.io' },
   },
   testnet: true,
 });

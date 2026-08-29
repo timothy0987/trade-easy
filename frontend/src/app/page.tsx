@@ -32,8 +32,8 @@ import TokenCreatorAbi from "@/contracts/TokenCreator.json";
 import TokenVendorAbi from "@/contracts/TokenVendor.json";
 import TeraFaucetAbi from "@/contracts/TeraFaucet.json";
 
-const HORIZEN_CHAIN_ID = 845320009;
-const EXPLORER = "https://horizen-explorer-testnet.appchain.base.org";
+const HORIZEN_CHAIN_ID = 2651420;
+const EXPLORER = "https://explorer-testnet.horizen.io";
 const A = addresses as Record<string, string>;
 
 // External testnet-funding resources

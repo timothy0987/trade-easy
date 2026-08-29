@@ -19,7 +19,7 @@ import PrivateTradingVaultAbi from "@/contracts/PrivateTradingVault.json";
 const A = addresses as Record<string, string>;
 const apiKey = process.env.GEMINI_API_KEY;
 const aiClient = apiKey ? new GoogleGenerativeAI(apiKey) : null;
-const PROVIDER_URL = process.env.HORIZEN_RPC_URL || "https://horizen-rpc-testnet.appchain.base.org";
+const PROVIDER_URL = process.env.HORIZEN_RPC_URL || "https://horizen-testnet.rpc.caldera.xyz/http";
 
 const POLICY = { MAX_TRADE_BPS: 2000 }; // mirror of PrivateTradingVault.maxTradeBps
 

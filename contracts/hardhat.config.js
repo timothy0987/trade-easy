@@ -1,7 +1,7 @@
 require('dotenv').config();
 require("@nomicfoundation/hardhat-toolbox");
 
-const { PRIVATE_KEY, HORIZEN_TESTNET_RPC_URL = "https://horizen-rpc-testnet.appchain.base.org" } = process.env;
+const { PRIVATE_KEY, HORIZEN_TESTNET_RPC_URL = "https://horizen-testnet.rpc.caldera.xyz/http" } = process.env;
 const accounts = PRIVATE_KEY ? [PRIVATE_KEY] : [];
 
 module.exports = {
@@ -14,11 +14,11 @@ module.exports = {
     },
   },
   networks: {
-    // Horizen — EVM-native L3 on Base. Gas token: ETH.
-    // Verify chainId / RPC against https://chainlist.org/chain/845320009 before mainnet.
+    // Horizen Testnet — runs on Base Sepolia. Gas token: ETH.
+    // Params per https://horizen-2-docs.horizen.io/horizen-chain/network/testnet
     horizenTestnet: {
       url: HORIZEN_TESTNET_RPC_URL,
-      chainId: 845320009,
+      chainId: 2651420,
       accounts,
     },
   },
@@ -27,10 +27,10 @@ module.exports = {
     customChains: [
       {
         network: "horizenTestnet",
-        chainId: 845320009,
+        chainId: 2651420,
         urls: {
-          apiURL: "https://horizen-explorer-testnet.appchain.base.org/api",
-          browserURL: "https://horizen-explorer-testnet.appchain.base.org",
+          apiURL: "https://explorer-testnet.horizen.io/api",
+          browserURL: "https://explorer-testnet.horizen.io",
         },
       },
     ],

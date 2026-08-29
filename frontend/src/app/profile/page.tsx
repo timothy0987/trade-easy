@@ -26,8 +26,8 @@ import TokenCreatorAbi from "@/contracts/TokenCreator.json";
 import UserProfileAbi from "@/contracts/UserProfile.json";
 
 const A = addresses as Record<string, string>;
-const HORIZEN_CHAIN_ID = 845320009;
-const EXPLORER = "https://horizen-explorer-testnet.appchain.base.org";
+const HORIZEN_CHAIN_ID = 2651420;
+const EXPLORER = "https://explorer-testnet.horizen.io";
 
 const ERC20_ABI = [
   {
