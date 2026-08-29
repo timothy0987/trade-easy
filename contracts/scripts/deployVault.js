@@ -119,12 +119,24 @@ async function main() {
     fees,
   ]);
 
-  // 6. Wire the mandate
-  console.log("Configuring mandate...");
+  // 6. ZEN staking pool — receives the fee-share (stakingFeeShareBps of accrued fees)
+  const zenToken = addresses.ZEN || tradableAddr; // tZEN on testnet; fallback to the tradable mock
+  let stakingPoolAddr = hre.ethers.ZeroAddress;
+  if (zenToken) {
+    console.log("Deploying ZenStakingPool...");
+    const pool = await deploy("ZenStakingPool", [zenToken, await vault.getAddress(), deployer.address]);
+    stakingPoolAddr = await pool.getAddress();
+  }
+
+  // 7. Wire the mandate + fee recipients
+  console.log("Configuring mandate + fee recipients...");
   await (await vault.setAllowedVenue(await adapter.getAddress(), true)).wait();
   if (tradableAddr) await (await vault.setAllowedToken(tradableAddr, true)).wait();
+  if (stakingPoolAddr !== hre.ethers.ZeroAddress) {
+    await (await vault.setFeeRecipients(deployer.address, stakingPoolAddr)).wait();
+  }
 
-  // 7. Persist (merge) addresses + ABIs
+  // 8. Persist (merge) addresses + ABIs
   addresses = {
     ...addresses,
     network: net,
@@ -135,6 +147,7 @@ async function main() {
     VaultFactory: await factory.getAddress(),
     VaultRouter: await router.getAddress(),
     TradeEasyVenueAdapter: await adapter.getAddress(),
+    ZenStakingPool: stakingPoolAddr === hre.ethers.ZeroAddress ? null : stakingPoolAddr,
     VaultAsset: assetAddr,
     VaultTradableAsset: tradableAddr || null,
     vaultAgent: agentAddress,
@@ -143,7 +156,7 @@ async function main() {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(addrPath, JSON.stringify(addresses, null, 2));
 
-  for (const name of ["PrivateTradingVault", "AgentRegistry"]) {
+  for (const name of ["PrivateTradingVault", "AgentRegistry", "ZenStakingPool"]) {
     const art = hre.artifacts.readArtifactSync(name);
     fs.writeFileSync(path.join(outDir, `${name}.json`), JSON.stringify(art.abi, null, 2));
   }

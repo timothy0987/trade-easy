@@ -17,6 +17,7 @@ front-runnable at M2 via committed NAV + zkVerify proofs.
 | `AgentRegistry` | Holds the agent key; gates trading on a fresh Vela attestation hash + liveness heartbeat; timelocked key rotation. |
 | `ITradeVenue` + `TradeEasyVenueAdapter` | Uniform swap interface. M1 routes through the local constant-product AMM (self-contained liquidity). M2 adds `DarkSwapVenueAdapter` for venue-layer execution privacy. |
 | `IVaultOracle` + `MockOracle` | Prices non-asset holdings for NAV. M1 replaces the mock with a TWAP feed. |
+| `ZenStakingPool` | ZEN stakers earn a pro-rata share of the vault fee shares routed here (`stakingFeeShareBps`). MasterChef-style accumulator; rewards arrive as direct ERC-20 transfers from the vault. Swappable for Horizen's canonical staking pool via `vault.setFeeRecipients`. |
 | `TradeEasyFactory/Pair/Router` | The AMM venue (pre-existing Uniswap-V2 fork, kept). |
 
 ## Mandate (governance-set, agent cannot change)
@@ -35,8 +36,9 @@ deposit / withdrawal / redemption settlement / trade, or via `accrueFees()`.
 - `managementFeeBps` — annualized on NAV (cap 5%/yr, default 2%)
 - `performanceFeeBps` — cut of any gain above `highWaterPricePerShare` (cap 30%, default 20%);
   the HWM ratchets on accrual so the same gain is never charged twice
-- `stakingFeeShareBps` — slice of **every** accrued fee routed to `stakingPool` (the ZEN
-  staking pool), for the M3 fee-share requirement (default 17.5%); rest goes to `feeRecipient`
+- `stakingFeeShareBps` — slice of **every** accrued fee routed to `stakingPool` (the
+  `ZenStakingPool`), for the M3 fee-share requirement (default 17.5%); rest goes to
+  `feeRecipient`. Wire it with `deploy:staking` / `vault.setFeeRecipients`.
 - Accrual **freezes** while `emergency` is latched
 - `previewAccruedFeeShares()` — view of what would be minted right now
 
@@ -64,7 +66,7 @@ deposit / withdrawal / redemption settlement / trade, or via `accrueFees()`.
 | --- | --- |
 | **M1** | Strategy runs in the enclave: params, signal thresholds, sizing, and timing are never on-chain or in any server the operator controls. `strategyTag` per trade is an opaque label. |
 | **M2** | `SolvencyVerifier` consumes zkVerify receipts: prove `Σshares · NAV == assets`, solvency, and per-trade mandate compliance **without revealing positions**. Depositor ledger shielded. `strategyTag` becomes a commitment to the encrypted rationale. Fills route through `DarkSwapVenueAdapter` (hidden size/price, MEV-proof). |
-| **M3** | Mainnet; usage metrics; fee-share to the ZEN staking pool (`stakingFeeShareBps`, wired now, default 17.5%). |
+| **M3** | Mainnet; usage metrics; fee-share to the ZEN staking pool — `ZenStakingPool` deployed and wired via `stakingFeeShareBps` (default 17.5%), swappable for Horizen's canonical pool. |
 
 ## What's explicitly NOT done in this scaffold
 
