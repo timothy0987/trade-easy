@@ -1,12 +1,13 @@
 {
   "name": "trade-easy-contracts",
   "version": "1.0.0",
-  "description": "Trade Easy Smart Contracts on Hedera",
+  "description": "Trade Easy — Horizen dApp contracts + private agentic trading vault",
   "main": "index.js",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy": "hardhat run scripts/deploy.js --network hederaTestnet"
+    "deploy:vault": "hardhat run scripts/deployVault.js --network horizenTestnet",
+    "deploy": "hardhat run scripts/deploy.js --network horizenTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

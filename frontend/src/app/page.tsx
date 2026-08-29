@@ -23,6 +23,7 @@ import {
   ExternalLink,
   User,
   Droplets,
+  Vault,
 } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
@@ -441,6 +442,13 @@ export default function Home() {
           <NavTab active={tab === "agent"} onClick={() => setTab("agent")} icon={<Bot className="w-4 h-4" />} label="AI Agent" />
           <NavTab active={tab === "faucet"} onClick={() => setTab("faucet")} icon={<Droplets className="w-4 h-4" />} label="Faucet" />
           <NavTab active={tab === "mint"} onClick={() => setTab("mint")} icon={<Coins className="w-4 h-4" />} label="Mint" />
+          <Link
+            href="/vault"
+            className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"
+          >
+            <Vault className="w-4 h-4" />
+            <span className="hidden sm:inline">Vault</span>
+          </Link>
           <Link
             href="/profile"
             className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"

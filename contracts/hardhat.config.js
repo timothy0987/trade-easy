@@ -6,8 +6,12 @@ const accounts = PRIVATE_KEY ? [PRIVATE_KEY] : [];
 
 module.exports = {
   solidity: {
-    version: "0.8.20",
-    settings: { optimizer: { enabled: true, runs: 200 } },
+    version: "0.8.24",
+    settings: {
+      optimizer: { enabled: true, runs: 200 },
+      viaIR: true, // PrivateTradingVault.executeTrade would otherwise hit "stack too deep"
+      evmVersion: "cancun",
+    },
   },
   networks: {
     // Horizen — EVM-native L3 on Base. Gas token: ETH.
