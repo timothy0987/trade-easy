@@ -487,20 +487,13 @@ export default function TradePage() {
                     <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">
                       Amount in ({amountLabel})
                     </label>
-                    <span className="text-[11px] text-[var(--color-ink-3)]">
-                      Get test{" "}
-                      <button type="button" onClick={mintTest("TERA")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">
-                        TERA
-                      </button>
-                      {" · "}
-                      <button type="button" onClick={mintTest("USDC")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">
-                        USDC
-                      </button>
-                      {" · "}
-                      <button type="button" onClick={mintTest("ZEN")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">
-                        ZEN
-                      </button>
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setTab("faucet")}
+                      className="text-[11px] font-semibold text-[var(--color-hz-blue)] hover:underline"
+                    >
+                      Need tokens?
+                    </button>
                   </div>
                   <input type="number" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} placeholder="1" className="field" />
                 </div>
@@ -558,6 +551,17 @@ export default function TradePage() {
               >
                 <Droplets className="w-3 h-3" /> Add TERA to your wallet
               </button>
+
+              <div className="w-full border-t border-[var(--color-border)] pt-4 flex flex-col gap-2 text-left">
+                <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">
+                  Mint test tokens · 1,000 each
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <button type="button" onClick={mintTest("TERA")} className="btn-ghost py-2 text-sm font-semibold">TERA</button>
+                  <button type="button" onClick={mintTest("USDC")} className="btn-ghost py-2 text-sm font-semibold">USDC</button>
+                  <button type="button" onClick={mintTest("ZEN")} className="btn-ghost py-2 text-sm font-semibold">ZEN</button>
+                </div>
+              </div>
 
               <div className="w-full border-t border-[var(--color-border)] pt-4 flex flex-col gap-2 text-left">
                 <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Need gas? Horizen Testnet uses ETH</span>
