@@ -69,9 +69,7 @@ export default function VaultPage() {
 
       <nav className="levitating-nav">
         <div className="flex items-center gap-2 pl-2 pr-1">
-          <span className="w-6 h-6 rounded-md bg-[var(--color-hz-navy)] flex items-center justify-center">
-            <span className="w-2.5 h-2.5 rounded-[3px] bg-[var(--color-hz-gold)]" />
-          </span>
+          <img src="/logo.svg" alt="Trade Easy" width={28} height={28} className="w-7 h-7" />
           <span className="font-extrabold tracking-tight text-[var(--color-hz-navy)] text-[15px] hidden sm:block">Trade Easy</span>
         </div>
         <div className="flex gap-0.5 border-l border-r border-[var(--color-border)] px-2 mx-1">
