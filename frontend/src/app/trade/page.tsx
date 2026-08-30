@@ -45,13 +45,11 @@ function TokenSelector({
   const [open, setOpen] = useState(false);
   const tera = A.TERA;
   const usdc = A.USDC;
-  const zen = A.ZEN;
 
   const isNative = value === NATIVE;
   const isTera = tera && value === tera;
   const isUsdc = usdc && value === usdc;
-  const isZen = zen && value === zen;
-  const isCustom = value !== "" && !isNative && !isTera && !isUsdc && !isZen;
+  const isCustom = value !== "" && !isNative && !isTera && !isUsdc;
 
   const shownLabel = isNative
     ? NATIVE
@@ -59,8 +57,6 @@ function TokenSelector({
     ? "TERA"
     : isUsdc
     ? "USDC"
-    : isZen
-    ? "tZEN"
     : isCustom
     ? `${value.slice(0, 10)}…`
     : placeholder;
@@ -99,12 +95,6 @@ function TokenSelector({
             <Row onClick={() => { onChange(usdc); setOpen(false); }}>
               <span>USDC</span>
               <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-blue)]/12 text-[var(--color-hz-blue)] px-2 py-0.5 rounded-full">Stablecoin</span>
-            </Row>
-          )}
-          {zen && (
-            <Row onClick={() => { onChange(zen); setOpen(false); }}>
-              <span>tZEN</span>
-              <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-green)]/15 text-[var(--color-hz-green)] px-2 py-0.5 rounded-full">Testnet ZEN</span>
             </Row>
           )}
           <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
@@ -247,7 +237,7 @@ export default function TradePage() {
       else if (tokenA === usdc && tokenB === NATIVE) fn = "sellUsdc";
       else if (tokenA === tera && tokenB === usdc) fn = "swapTeraForUsdc";
       else if (tokenA === usdc && tokenB === tera) fn = "swapUsdcForTera";
-      else throw new Error("Unsupported swap route.");
+      else throw new Error("The vendor only trades ETH, TERA and USDC.");
 
       const abi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as { abi: unknown[] }).abi;
 
