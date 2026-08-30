@@ -3,16 +3,16 @@ import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trade Easy | Horizen dApp & AI Trading Agent",
+  title: "Private Trading Vault | Horizen",
   description:
-    "Swap assets, claim TERA from the faucet, and run guardrail-enforced AI trades on Horizen — the EVM-native L3 on Base for private onchain finance.",
+    "A pooled vault on Horizen where an autonomous agent trades inside a TEE — strategy and positions stay confidential, solvency stays verifiable.",
   icons: {
     icon: "/Artboard_15_4x-100_1_-removebg-preview.png",
     apple: "/Artboard_15_4x-100_1_-removebg-preview.png",
   },
   openGraph: {
     images: [
-      { url: "/Artboard_15_4x-100_1_-removebg-preview.png", width: 800, height: 600, alt: "Trade Easy" },
+      { url: "/Artboard_15_4x-100_1_-removebg-preview.png", width: 800, height: 600, alt: "Private Trading Vault" },
     ],
   },
 };

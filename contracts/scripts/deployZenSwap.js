@@ -3,26 +3,24 @@ const fs = require("fs");
 const path = require("path");
 
 /**
- * Adds ZEN as a real swap pair.
+ * Deploys the trading venue the vault's agent swaps against.
  *
- *   npm run deploy:zenswap
+ *   npm run deploy:venue
  *
- * - Deploys MockERC20 "Horizen ZEN" (ZEN, 18d, open mint) — the existing tZEN
- *   at 0x7Bb00ada… has an owner-only mint, so we can't fund a vendor with it.
- * - Deploys the new generic TokenVendor(owner, rate=100, [TERA, USDC, ZEN]).
- * - Mints 5M each of TERA / USDC / ZEN into the vendor treasury.
- * - Merges ZEN + the new TokenVendor address (and ABI) into addresses.json.
+ * - MockERC20 "USD Coin" (USDC, 18d, open mint)
+ * - MockERC20 "Horizen ZEN" (ZEN, 18d, open mint) — also the ZenStakingPool staking token
+ * - Generic TokenVendor(owner, rate=100, [USDC, ZEN]) — fixed-rate ETH<->token / token<->token
+ * - Seeds 5M USDC + 5M ZEN into the vendor treasury
  *
- * Run `npm run fund` afterwards to give the new vendor ETH for token->ETH swaps.
- * Existing TeraFaucet is untouched.
+ * Merges USDC / ZEN / TokenVendor + the ABI into frontend/src/contracts.
+ * Run `npm run fund` afterwards to give the vendor ETH for token->ETH swaps.
  */
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   const outDir = path.join(__dirname, "../../frontend/src/contracts");
   const addrPath = path.join(outDir, "addresses.json");
-  const A = JSON.parse(fs.readFileSync(addrPath, "utf8"));
+  const A = fs.existsSync(addrPath) ? JSON.parse(fs.readFileSync(addrPath, "utf8")) : {};
 
-  if (!A.TERA || !A.USDC) throw new Error("TERA / USDC missing from addresses.json — run deploy:tera first");
   console.log(`Network : ${hre.network.name}`);
   console.log(`Deployer: ${deployer.address}`);
 
@@ -34,36 +32,33 @@ async function main() {
     return c;
   };
 
-  console.log("Deploying ZEN mock + generic TokenVendor...");
+  const usdc = await deploy("MockERC20", ["USD Coin", "USDC", 18]);
   const zen = await deploy("MockERC20", ["Horizen ZEN", "ZEN", 18]);
+  const usdcAddr = await usdc.getAddress();
   const zenAddr = await zen.getAddress();
 
-  const vendor = await deploy("TokenVendor", [deployer.address, 100n, [A.TERA, A.USDC, zenAddr]]);
+  const vendor = await deploy("TokenVendor", [deployer.address, 100n, [usdcAddr, zenAddr]]);
   const vendorAddr = await vendor.getAddress();
 
-  console.log("Seeding vendor treasury (5M TERA / USDC / ZEN)...");
+  console.log("Seeding vendor treasury (5M USDC / ZEN)...");
   const amt = hre.ethers.parseEther("5000000");
-  const tera = await hre.ethers.getContractAt(["function mint(address,uint256)"], A.TERA);
-  const usdc = await hre.ethers.getContractAt(["function mint(address,uint256)"], A.USDC);
-  await (await tera.mint(vendorAddr, amt)).wait();
   await (await usdc.mint(vendorAddr, amt)).wait();
   await (await zen.mint(vendorAddr, amt)).wait();
 
-  // Persist
+  A.USDC = usdcAddr;
   A.ZEN = zenAddr;
   A.TokenVendor = vendorAddr;
   A._zenNote =
-    "Horizen ZEN — our own MockERC20 (18d, open mint) so the vendor + users can hold it. " +
-    "The prior third-party tZEN (0x7Bb00ada…) had an owner-only mint. Point ZEN at Horizen's " +
-    "canonical token once published.";
+    "Horizen ZEN — our own MockERC20 (18d, open mint) so the vendor, users and the " +
+    "staking pool can hold it. Point ZEN at Horizen's canonical token once published.";
   A.timestamp = new Date().toISOString();
   fs.writeFileSync(addrPath, JSON.stringify(A, null, 2));
 
   const art = hre.artifacts.readArtifactSync("TokenVendor");
   fs.writeFileSync(path.join(outDir, "TokenVendor.json"), JSON.stringify(art.abi, null, 2));
 
-  console.log("\nMerged ZEN + new TokenVendor into frontend/src/contracts/");
-  console.log(JSON.stringify({ ZEN: zenAddr, TokenVendor: vendorAddr }, null, 2));
+  console.log("\nMerged USDC / ZEN / TokenVendor into frontend/src/contracts/");
+  console.log(JSON.stringify({ USDC: usdcAddr, ZEN: zenAddr, TokenVendor: vendorAddr }, null, 2));
   console.log("\nNext: `npm run fund` to give the vendor ETH for token->ETH swaps.");
 }
 

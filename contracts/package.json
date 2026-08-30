@@ -1,19 +1,15 @@
 {
-  "name": "trade-easy-contracts",
+  "name": "private-trading-vault-contracts",
   "version": "1.0.0",
-  "description": "Trade Easy — Horizen dApp contracts + private agentic trading vault",
+  "description": "Private agentic trading vault for Horizen (Ecosystem Fund S2, RFP: private agentic trading vaults)",
   "main": "index.js",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:factory": "hardhat run scripts/deployFactory.js --network horizenTestnet",
     "deploy:vault": "hardhat run scripts/deployVault.js --network horizenTestnet",
     "deploy:staking": "hardhat run scripts/deployStaking.js --network horizenTestnet",
-    "deploy:tera": "hardhat run scripts/deployTeraStack.js --network horizenTestnet",
-    "deploy:zenswap": "hardhat run scripts/deployZenSwap.js --network horizenTestnet",
-    "fund": "hardhat run scripts/fundContracts.js --network horizenTestnet",
-    "deploy:all": "npm run deploy:factory && npm run deploy:vault",
-    "deploy": "hardhat run scripts/deploy.js --network horizenTestnet"
+    "deploy:venue": "hardhat run scripts/deployZenSwap.js --network horizenTestnet",
+    "fund": "hardhat run scripts/fundContracts.js --network horizenTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
@@ -21,7 +17,6 @@
     "hardhat": "^2.22.3"
   },
   "dependencies": {
-    "@hashgraph/sdk": "^2.81.0",
     "@openzeppelin/contracts": "^5.6.1"
   }
 }

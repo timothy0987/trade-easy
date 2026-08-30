@@ -1,24 +1,12 @@
 {
   "network": "horizenTestnet",
   "chainId": 2651420,
-  "_note": "LIVE on Horizen Testnet (chain 2651420): TokenCreator, PrivateTradingVault + vault stack, ZEN (own mock), TERA, USDC, TokenVendor (generic swap), TeraFaucet. NOT YET DEPLOYED: ZenStakingPool (run deploy:staking). STALE (Hedera/X1 era, unused): TradeEasyFactory, TradeEasyRouter, Faucet, UserProfile, MockHBAR, WHBAR.",
-  "TokenCreator": "0x91Ada46da7341Bd9A536D2757476BfacB3Fc566D",
-  "TradeEasyFactory": "0x1825BD4ef0603B3c0A6800500f6A803EDA6D77a1",
-  "TradeEasyRouter": "0x189A3EdFdB31AE76012C89e6d8B09191B68f9D25",
   "deployer": "0x408DC4477cC9D531d84a37DCf8eb62BDaf58D0C4",
   "timestamp": "2026-08-30T18:16:56.104Z",
-  "MockHBAR": "0xb1F616b8134F602c3Bb465fB5b5e6565cCAd37Ed",
-  "TERA": "0x140Cca7Ef245F3c506752f8E08fA5dbcF25c1bDF",
-  "ZEN": "0x069600EC061fe56358207A8c55ae50dD0eE6082A",
-  "_zenNote": "Horizen ZEN — our own MockERC20 (18d, open mint) so the vendor + users can hold it. The prior third-party tZEN (0x7Bb00ada…) had an owner-only mint. Point ZEN at Horizen's canonical token once published.",
-  "Faucet": "0xef0A8Fbe966F1DcBF9D85FBDAB20bc7d63FE372d",
-  "TeraFaucet": "0x89a34A28D9615DCAEa10bd86FaC329509576EfF7",
-  "USDC": "0xe9728ab4497F026c4700D2B69DF107ee351E8D59",
-  "UserProfile": "0x9eEAE7DeB8BE1e014B89639022B52cCB5721B40a",
-  "WHBAR": "0xb1F616b8134F602c3Bb465fB5b5e6565cCAd37Ed",
-  "TokenVendor": "0xa61934d9EdF67D2dBE660f0Ea404685139f9E7Ca",
+
   "PrivateTradingVault": "0xBBA15fc8B1D3b91BdC24D2f4a307Af3B05D0C2a6",
   "AgentRegistry": "0xEdaF74C13658c59dEf42dA7869D8271efb5e559d",
+  "ZenStakingPool": "0xFc55B1431BfBee6A81dD8f8De9f5FbCd9192F818",
   "VaultOracle": "0x45F01386594d1B257BcE6F09C66543350A12DD4E",
   "VaultFactory": "0xF30d0a704d3c872F50ED3135B4Ab92f5D6b1Ecc4",
   "VaultRouter": "0x0aa95F124de079bc7E4b27a428c01632DE107486",
@@ -26,5 +14,10 @@
   "VaultAsset": "0x4d332dE643537d9A75F447a14eA36607b3dEd7BE",
   "VaultTradableAsset": "0xe6064A282533C98943De264116001779D6c1E194",
   "vaultAgent": "0x408DC4477cC9D531d84a37DCf8eb62BDaf58D0C4",
-  "ZenStakingPool": "0xFc55B1431BfBee6A81dD8f8De9f5FbCd9192F818"
+
+  "TokenVendor": "0xa61934d9EdF67D2dBE660f0Ea404685139f9E7Ca",
+  "USDC": "0xe9728ab4497F026c4700D2B69DF107ee351E8D59",
+  "ZEN": "0x069600EC061fe56358207A8c55ae50dD0eE6082A",
+  "_zenNote": "Own MockERC20 (18d, open mint) — the vendor/users/staking pool can hold it. Point ZEN at Horizen's canonical token once published.",
+  "_note": "All live on Horizen Testnet (chain 2651420). The generic TokenVendor at 0xa619… still has an old TERA pair registered on-chain; re-run `deploy:venue` for a clean [USDC, ZEN] vendor."
 }
