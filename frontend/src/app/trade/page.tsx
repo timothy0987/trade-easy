@@ -251,44 +251,94 @@ export default function TradePage() {
 
       const abi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as { abi: unknown[] }).abi;
 
-      if (tokenA !== NATIVE) {
-        const tokenAddr = tokenA === tera ? tera : usdc;
-        await walletClient.writeContract({
-          account: address as `0x${string}`,
-          address: tokenAddr as `0x${string}`,
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [vendor as `0x${string}`, amount],
-        });
-        await new Promise((r) => setTimeout(r, 4000));
-      }
-
-      let txHash: `0x${string}`;
+      // --- balance pre-check (fail with a clear message instead of a reverted tx) ---
       if (tokenA === NATIVE) {
-        txHash = await walletClient.writeContract({
-          account: address as `0x${string}`,
-          address: vendor as `0x${string}`,
-          abi: abi as never,
-          functionName: fn as never,
-          value: amount,
-        });
+        const bal = await publicClient.getBalance({ address });
+        if (bal < amount) throw new Error(`You have ${(Number(bal) / 1e18).toFixed(4)} ETH — need ${swapAmountIn}.`);
       } else {
-        txHash = await walletClient.writeContract({
-          account: address as `0x${string}`,
-          address: vendor as `0x${string}`,
-          abi: abi as never,
-          functionName: fn as never,
-          args: [amount] as never,
-        });
+        const sym = tokenA === tera ? "TERA" : "USDC";
+        const bal = (await publicClient.readContract({
+          address: tokenA as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [address],
+        })) as bigint;
+        if (bal < amount)
+          throw new Error(`You have ${(Number(bal) / 1e18).toLocaleString()} ${sym} — need ${swapAmountIn}. Use "Get test ${sym}" first.`);
+
+        // --- approve only if needed, and WAIT for it to confirm ---
+        const allowance = (await publicClient.readContract({
+          address: tokenA as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "allowance",
+          args: [address, vendor as `0x${string}`],
+        })) as bigint;
+        if (allowance < amount) {
+          const approveHash = await walletClient.writeContract({
+            account: address as `0x${string}`,
+            address: tokenA as `0x${string}`,
+            abi: erc20Abi,
+            functionName: "approve",
+            args: [vendor as `0x${string}`, amount],
+          });
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        }
       }
 
-      showToast(`Swap submitted: ${txHash}`);
+      const txHash =
+        tokenA === NATIVE
+          ? await walletClient.writeContract({
+              account: address as `0x${string}`,
+              address: vendor as `0x${string}`,
+              abi: abi as never,
+              functionName: fn as never,
+              value: amount,
+            })
+          : await walletClient.writeContract({
+              account: address as `0x${string}`,
+              address: vendor as `0x${string}`,
+              abi: abi as never,
+              functionName: fn as never,
+              args: [amount] as never,
+            });
+
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+      showToast(`Swap confirmed: ${txHash.slice(0, 12)}…`);
       setSwapAmountIn("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      showToast(/reject|denied|4001/i.test(msg) ? "Transaction rejected" : `Swap failed: ${msg}`);
+      showToast(
+        /reject|denied|4001/i.test(msg)
+          ? "Transaction rejected"
+          : msg.length < 160
+          ? msg
+          : `Swap failed: ${msg.slice(0, 140)}…`
+      );
     } finally {
       setIsSwapping(false);
+    }
+  };
+
+  const mintTest = (which: "TERA" | "USDC") => async () => {
+    if (!isConnected || !walletClient || !address || !publicClient) return showToast("Connect your wallet");
+    const tokenAddr = which === "TERA" ? A.TERA : A.USDC;
+    if (!tokenAddr) return showToast(`${which} not deployed`);
+    try {
+      await ensureHorizen();
+      const hash = await walletClient.writeContract({
+        account: address as `0x${string}`,
+        address: tokenAddr as `0x${string}`,
+        abi: [
+          { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [] },
+        ],
+        functionName: "mint",
+        args: [address as `0x${string}`, parseEther("1000")],
+      });
+      showToast(`Minting 1,000 ${which}…`);
+      await publicClient.waitForTransactionReceipt({ hash });
+      showToast(`Got 1,000 ${which}`);
+    } catch (err) {
+      showToast(`Mint failed: ${err instanceof Error ? err.message.slice(0, 120) : String(err)}`);
     }
   };
 
@@ -452,9 +502,21 @@ export default function TradePage() {
                   <TokenSelector label="Token Out" value={tokenB} onChange={setTokenB} placeholder="Select token" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">
-                    Amount in ({amountLabel})
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">
+                      Amount in ({amountLabel})
+                    </label>
+                    <span className="text-[11px] text-[var(--color-ink-3)]">
+                      Need tokens?{" "}
+                      <button type="button" onClick={mintTest("TERA")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">
+                        Get test TERA
+                      </button>
+                      {" · "}
+                      <button type="button" onClick={mintTest("USDC")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">
+                        USDC
+                      </button>
+                    </span>
+                  </div>
                   <input type="number" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} placeholder="1" className="field" />
                 </div>
 
