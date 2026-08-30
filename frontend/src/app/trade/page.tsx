@@ -6,11 +6,12 @@ import {
   useAccount,
   useWriteContract,
   useReadContract,
+  useReadContracts,
   usePublicClient,
   useWalletClient,
   useSwitchChain,
 } from "wagmi";
-import { parseEther, erc20Abi } from "viem";
+import { parseEther, erc20Abi, type Abi } from "viem";
 import { ArrowLeftRight, Droplets, Loader2, ExternalLink, CheckCircle2, Vault, ChevronRight, User } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
@@ -164,6 +165,20 @@ function ZenPriceBadge() {
   );
 }
 
+// TERA has no market — it is priced off the on-chain vendor rate, with the mock
+// USDC pegged to $1:  1 ETH = tokensPerHbar TERA = usdcPerHbar USDC
+//   => 1 TERA = (usdcPerHbar / tokensPerHbar) USDC = that many USD.
+function TeraPriceBadge({ usd }: { usd: number }) {
+  return (
+    <span
+      title="TERA value from the TokenVendor rate (mock USDC pegged to $1): 1 TERA = usdcPerHbar / tokensPerHbar USDC."
+      className="text-[11px] font-mono font-semibold text-[var(--color-ink-2)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2.5 py-1 rounded-lg"
+    >
+      TERA&nbsp;<span className="text-[var(--color-hz-gold-deep)]">${usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
+    </span>
+  );
+}
+
 function NavTab({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
     <button
@@ -280,6 +295,36 @@ export default function TradePage() {
   const amountLabel =
     tokenA === NATIVE ? NATIVE : tokenA === A.TERA ? "TERA" : tokenA === A.USDC ? "USDC" : "TOKEN";
 
+  /* -------- Vendor rates (source of truth for swap pricing) -------- */
+  const { data: rateData } = useReadContracts({
+    contracts: [
+      { address: A.TokenVendor as `0x${string}`, abi: TokenVendorAbi as Abi, functionName: "tokensPerHbar" },
+      { address: A.TokenVendor as `0x${string}`, abi: TokenVendorAbi as Abi, functionName: "usdcPerHbar" },
+    ],
+    query: { enabled: /^0x[a-fA-F0-9]{40}$/.test(A.TokenVendor || ""), refetchInterval: 60_000 },
+  });
+  const teraPerEth = Number((rateData?.[0]?.result as bigint | undefined) ?? 100n) || 100;
+  const usdcPerEth = Number((rateData?.[1]?.result as bigint | undefined) ?? 100n) || 100;
+  const teraUsd = usdcPerEth / teraPerEth; // mock USDC = $1
+
+  const swapRate = (): { line: string; out: string } | null => {
+    const tera = A.TERA;
+    const usdc = A.USDC;
+    if (!tokenA || !tokenB || tokenA === tokenB) return null;
+    let r: number, aSym: string, bSym: string;
+    if (tokenA === NATIVE && tokenB === tera) [r, aSym, bSym] = [teraPerEth, "ETH", "TERA"];
+    else if (tokenA === tera && tokenB === NATIVE) [r, aSym, bSym] = [1 / teraPerEth, "TERA", "ETH"];
+    else if (tokenA === NATIVE && tokenB === usdc) [r, aSym, bSym] = [usdcPerEth, "ETH", "USDC"];
+    else if (tokenA === usdc && tokenB === NATIVE) [r, aSym, bSym] = [1 / usdcPerEth, "USDC", "ETH"];
+    else if (tokenA === tera && tokenB === usdc) [r, aSym, bSym] = [usdcPerEth / teraPerEth, "TERA", "USDC"];
+    else if (tokenA === usdc && tokenB === tera) [r, aSym, bSym] = [teraPerEth / usdcPerEth, "USDC", "TERA"];
+    else return null;
+    const line = `1 ${aSym} ≈ ${r.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${bSym}`;
+    const amt = parseFloat(swapAmountIn);
+    const out = Number.isFinite(amt) && amt > 0 ? `≈ ${(amt * r).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${bSym}` : "";
+    return { line, out };
+  };
+
   /* -------- Faucet -------- */
   const [faucetTx, setFaucetTx] = useState(false);
   const [nextClaimTime, setNextClaimTime] = useState<number | null>(null);
@@ -378,6 +423,7 @@ export default function TradePage() {
         </div>
 
         <div className="hidden md:flex items-center gap-2 border-r border-[var(--color-border)] pr-3 mr-1">
+          <TeraPriceBadge usd={teraUsd} />
           <ZenPriceBadge />
         </div>
 
@@ -409,8 +455,20 @@ export default function TradePage() {
                   <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">
                     Amount in ({amountLabel})
                   </label>
-                  <input type="number" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} placeholder="100" className="field" />
+                  <input type="number" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} placeholder="1" className="field" />
                 </div>
+
+                {(() => {
+                  const rate = swapRate();
+                  if (!rate) return null;
+                  return (
+                    <div className="flex items-center justify-between text-xs bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2">
+                      <span className="text-[var(--color-ink-3)]">Rate&nbsp;· {rate.line}</span>
+                      {rate.out && <span className="font-mono font-semibold text-[var(--color-hz-navy)]">{rate.out}</span>}
+                    </div>
+                  );
+                })()}
+
                 <button type="submit" disabled={isSwapping} className="btn-gold w-full py-3.5 flex items-center justify-center gap-2">
                   {isSwapping && <Loader2 className="w-4 h-4 animate-spin" />}
                   {isSwapping ? "Swapping…" : "Execute Swap"}
