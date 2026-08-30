@@ -45,11 +45,13 @@ function TokenSelector({
   const [open, setOpen] = useState(false);
   const tera = A.TERA;
   const usdc = A.USDC;
+  const zen = A.ZEN;
 
   const isNative = value === NATIVE;
   const isTera = tera && value === tera;
   const isUsdc = usdc && value === usdc;
-  const isCustom = value !== "" && !isNative && !isTera && !isUsdc;
+  const isZen = zen && value === zen;
+  const isCustom = value !== "" && !isNative && !isTera && !isUsdc && !isZen;
 
   const shownLabel = isNative
     ? NATIVE
@@ -57,6 +59,8 @@ function TokenSelector({
     ? "TERA"
     : isUsdc
     ? "USDC"
+    : isZen
+    ? "ZEN"
     : isCustom
     ? `${value.slice(0, 10)}…`
     : placeholder;
@@ -95,6 +99,12 @@ function TokenSelector({
             <Row onClick={() => { onChange(usdc); setOpen(false); }}>
               <span>USDC</span>
               <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-blue)]/12 text-[var(--color-hz-blue)] px-2 py-0.5 rounded-full">Stablecoin</span>
+            </Row>
+          )}
+          {zen && (
+            <Row onClick={() => { onChange(zen); setOpen(false); }}>
+              <span>ZEN</span>
+              <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-green)]/15 text-[var(--color-hz-green)] px-2 py-0.5 rounded-full">Horizen token</span>
             </Row>
           )}
           <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
@@ -221,34 +231,29 @@ export default function TradePage() {
     if (!walletClient || !address || !publicClient) return showToast("Wallet not ready");
 
     const vendor = A.TokenVendor;
-    const tera = A.TERA;
-    const usdc = A.USDC;
     if (!vendor) return showToast("TokenVendor address missing from addresses.json");
+
+    const ZERO = "0x0000000000000000000000000000000000000000" as const;
+    const symOf = (t: string) =>
+      t === NATIVE ? "ETH" : t === A.TERA ? "TERA" : t === A.USDC ? "USDC" : t === A.ZEN ? "ZEN" : "TOKEN";
 
     setIsSwapping(true);
     try {
       const amount = parseEther(swapAmountIn);
       await ensureHorizen();
 
-      let fn = "";
-      if (tokenA === NATIVE && tokenB === tera) fn = "buyTokens";
-      else if (tokenA === tera && tokenB === NATIVE) fn = "sellTera";
-      else if (tokenA === NATIVE && tokenB === usdc) fn = "buyUsdc";
-      else if (tokenA === usdc && tokenB === NATIVE) fn = "sellUsdc";
-      else if (tokenA === tera && tokenB === usdc) fn = "swapTeraForUsdc";
-      else if (tokenA === usdc && tokenB === tera) fn = "swapUsdcForTera";
-      else throw new Error("The vendor only trades ETH, TERA and USDC.");
-
       const abi = Array.isArray(TokenVendorAbi) ? TokenVendorAbi : (TokenVendorAbi as { abi: unknown[] }).abi;
+      const tokenIn = (tokenA === NATIVE ? ZERO : tokenA) as `0x${string}`;
+      const tokenOut = (tokenB === NATIVE ? ZERO : tokenB) as `0x${string}`;
 
       // --- balance pre-check (fail with a clear message instead of a reverted tx) ---
       if (tokenA === NATIVE) {
         const bal = await publicClient.getBalance({ address });
         if (bal < amount) throw new Error(`You have ${(Number(bal) / 1e18).toFixed(4)} ETH — need ${swapAmountIn}.`);
       } else {
-        const sym = tokenA === tera ? "TERA" : "USDC";
+        const sym = symOf(tokenA);
         const bal = (await publicClient.readContract({
-          address: tokenA as `0x${string}`,
+          address: tokenIn,
           abi: erc20Abi,
           functionName: "balanceOf",
           args: [address],
@@ -258,7 +263,7 @@ export default function TradePage() {
 
         // --- approve only if needed, and WAIT for it to confirm ---
         const allowance = (await publicClient.readContract({
-          address: tokenA as `0x${string}`,
+          address: tokenIn,
           abi: erc20Abi,
           functionName: "allowance",
           args: [address, vendor as `0x${string}`],
@@ -266,7 +271,7 @@ export default function TradePage() {
         if (allowance < amount) {
           const approveHash = await walletClient.writeContract({
             account: address as `0x${string}`,
-            address: tokenA as `0x${string}`,
+            address: tokenIn,
             abi: erc20Abi,
             functionName: "approve",
             args: [vendor as `0x${string}`, amount],
@@ -275,22 +280,14 @@ export default function TradePage() {
         }
       }
 
-      const txHash =
-        tokenA === NATIVE
-          ? await walletClient.writeContract({
-              account: address as `0x${string}`,
-              address: vendor as `0x${string}`,
-              abi: abi as never,
-              functionName: fn as never,
-              value: amount,
-            })
-          : await walletClient.writeContract({
-              account: address as `0x${string}`,
-              address: vendor as `0x${string}`,
-              abi: abi as never,
-              functionName: fn as never,
-              args: [amount] as never,
-            });
+      const txHash = await walletClient.writeContract({
+        account: address as `0x${string}`,
+        address: vendor as `0x${string}`,
+        abi: abi as never,
+        functionName: "swap" as never,
+        args: [tokenIn, tokenOut, amount, 0n] as never,
+        value: tokenA === NATIVE ? amount : 0n,
+      });
 
       await publicClient.waitForTransactionReceipt({ hash: txHash });
       showToast(`Swap confirmed: ${txHash.slice(0, 12)}…`);
@@ -309,9 +306,9 @@ export default function TradePage() {
     }
   };
 
-  const mintTest = (which: "TERA" | "USDC") => async () => {
+  const mintTest = (which: "TERA" | "USDC" | "ZEN") => async () => {
     if (!isConnected || !walletClient || !address || !publicClient) return showToast("Connect your wallet");
-    const tokenAddr = which === "TERA" ? A.TERA : A.USDC;
+    const tokenAddr = which === "TERA" ? A.TERA : which === "USDC" ? A.USDC : A.ZEN;
     if (!tokenAddr) return showToast(`${which} not deployed`);
     try {
       await ensureHorizen();
@@ -332,33 +329,27 @@ export default function TradePage() {
     }
   };
 
-  const amountLabel =
-    tokenA === NATIVE ? NATIVE : tokenA === A.TERA ? "TERA" : tokenA === A.USDC ? "USDC" : "TOKEN";
+  const symOfTok = (t: string) =>
+    t === NATIVE ? "ETH" : t === A.TERA ? "TERA" : t === A.USDC ? "USDC" : t === A.ZEN ? "ZEN" : "TOKEN";
+  const amountLabel = symOfTok(tokenA);
 
-  /* -------- Vendor rates (source of truth for swap pricing) -------- */
+  /* -------- Vendor rate (source of truth for swap pricing) -------- */
   const { data: rateData } = useReadContracts({
-    contracts: [
-      { address: A.TokenVendor as `0x${string}`, abi: TokenVendorAbi as Abi, functionName: "tokensPerHbar" },
-      { address: A.TokenVendor as `0x${string}`, abi: TokenVendorAbi as Abi, functionName: "usdcPerHbar" },
-    ],
+    contracts: [{ address: A.TokenVendor as `0x${string}`, abi: TokenVendorAbi as Abi, functionName: "rate" }],
     query: { enabled: /^0x[a-fA-F0-9]{40}$/.test(A.TokenVendor || ""), refetchInterval: 60_000 },
   });
-  const teraPerEth = Number((rateData?.[0]?.result as bigint | undefined) ?? 100n) || 100;
-  const usdcPerEth = Number((rateData?.[1]?.result as bigint | undefined) ?? 100n) || 100;
-  const teraUsd = usdcPerEth / teraPerEth; // mock USDC = $1
+  const rate = Number((rateData?.[0]?.result as bigint | undefined) ?? 100n) || 100; // tokens per 1 ETH
+  const teraUsd = 1; // every registered token is pegged 1:1 with the mock USDC ($1)
 
+  // Fixed-rate model: ETH->token = rate, token->ETH = 1/rate, token<->token = 1
   const swapRate = (): { line: string; out: string } | null => {
-    const tera = A.TERA;
-    const usdc = A.USDC;
     if (!tokenA || !tokenB || tokenA === tokenB) return null;
-    let r: number, aSym: string, bSym: string;
-    if (tokenA === NATIVE && tokenB === tera) [r, aSym, bSym] = [teraPerEth, "ETH", "TERA"];
-    else if (tokenA === tera && tokenB === NATIVE) [r, aSym, bSym] = [1 / teraPerEth, "TERA", "ETH"];
-    else if (tokenA === NATIVE && tokenB === usdc) [r, aSym, bSym] = [usdcPerEth, "ETH", "USDC"];
-    else if (tokenA === usdc && tokenB === NATIVE) [r, aSym, bSym] = [1 / usdcPerEth, "USDC", "ETH"];
-    else if (tokenA === tera && tokenB === usdc) [r, aSym, bSym] = [usdcPerEth / teraPerEth, "TERA", "USDC"];
-    else if (tokenA === usdc && tokenB === tera) [r, aSym, bSym] = [teraPerEth / usdcPerEth, "USDC", "TERA"];
-    else return null;
+    const aIsEth = tokenA === NATIVE;
+    const bIsEth = tokenB === NATIVE;
+    const aSym = symOfTok(tokenA);
+    const bSym = symOfTok(tokenB);
+    if (aSym === "TOKEN" || bSym === "TOKEN") return null;
+    const r = aIsEth ? rate : bIsEth ? 1 / rate : 1;
     const line = `1 ${aSym} ≈ ${r.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${bSym}`;
     const amt = parseFloat(swapAmountIn);
     const out = Number.isFinite(amt) && amt > 0 ? `≈ ${(amt * r).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${bSym}` : "";
@@ -480,7 +471,7 @@ export default function TradePage() {
                   Instant Swap
                 </h2>
                 <p className="text-[var(--color-ink-2)] text-sm mt-1">
-                  The venue the vault&apos;s agent trades against. Swap ETH, TERA and USDC through the Token Vendor.
+                  The venue the vault&apos;s agent trades against. Swap ETH, TERA, USDC and ZEN through the Token Vendor at a fixed rate.
                 </p>
               </div>
 
@@ -497,13 +488,17 @@ export default function TradePage() {
                       Amount in ({amountLabel})
                     </label>
                     <span className="text-[11px] text-[var(--color-ink-3)]">
-                      Need tokens?{" "}
+                      Get test{" "}
                       <button type="button" onClick={mintTest("TERA")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">
-                        Get test TERA
+                        TERA
                       </button>
                       {" · "}
                       <button type="button" onClick={mintTest("USDC")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">
                         USDC
+                      </button>
+                      {" · "}
+                      <button type="button" onClick={mintTest("ZEN")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">
+                        ZEN
                       </button>
                     </span>
                   </div>

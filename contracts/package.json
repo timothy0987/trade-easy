@@ -10,6 +10,7 @@
     "deploy:vault": "hardhat run scripts/deployVault.js --network horizenTestnet",
     "deploy:staking": "hardhat run scripts/deployStaking.js --network horizenTestnet",
     "deploy:tera": "hardhat run scripts/deployTeraStack.js --network horizenTestnet",
+    "deploy:zenswap": "hardhat run scripts/deployZenSwap.js --network horizenTestnet",
     "fund": "hardhat run scripts/fundContracts.js --network horizenTestnet",
     "deploy:all": "npm run deploy:factory && npm run deploy:vault",
     "deploy": "hardhat run scripts/deploy.js --network horizenTestnet"

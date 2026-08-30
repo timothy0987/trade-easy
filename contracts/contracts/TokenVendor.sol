@@ -1,150 +1,134 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-interface IERC20 {
-    function transfer(address to, uint256 amount) external returns (bool);
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-}
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-// HTS Precompile Interface for Association
-interface IHederaTokenService {
-    function associateToken(address account, address token) external returns (int64 responseCode);
-}
+/**
+ * @title TokenVendor
+ * @notice Fixed-rate testnet swap venue for Horizen. Native ETH plus any registered
+ *         18-decimal ERC-20 (TERA, USDC, ZEN), all pegged at `rate` tokens per 1 ETH
+ *         (default 100). Swap ETH<->token or token<->token; the vendor pays from its
+ *         own treasury, so keep it funded (`npm run fund`).
+ *
+ *         This is a demo venue, not an AMM: prices are fixed, trade size causes no
+ *         slippage, and `rate` / the token set are owner-controlled.
+ */
+contract TokenVendor is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
 
-contract TokenVendor {
-    IERC20 public teraToken;
-    address public usdcToken;
-    uint256 public tokensPerHbar = 100; // 1 HBAR = 100 TERA
-    uint256 public usdcPerHbar = 100;   // 1 HBAR = 100 USDC
-    address public owner;
-    address public constant HTS_ADDRESS = address(0x167);
+    address public constant ETH = address(0); // sentinel for the native asset
 
-    event TokensPurchased(address buyer, uint256 amountOfHbar, uint256 amountOfTokens);
-    event TokensSold(address seller, uint256 amountOfTokens, uint256 amountOfHbar);
-    event UsdcPurchased(address buyer, uint256 amountOfHbar, uint256 amountOfUsdc);
-    event UsdcSold(address seller, uint256 amountOfUsdc, uint256 amountOfHbar);
-    event SwappedTeraForUsdc(address user, uint256 teraAmount, uint256 usdcAmount);
-    event SwappedUsdcForTera(address user, uint256 usdcAmount, uint256 teraAmount);
+    uint256 public rate; // registered-token units per 1 ETH (tokens assumed 18-dec)
+    address[] private _tokens;
+    mapping(address => bool) public isSupported;
 
-    constructor(address _teraToken, address _usdcToken) {
-        teraToken = IERC20(_teraToken);
-        usdcToken = _usdcToken;
-        owner = msg.sender;
+    event Swapped(
+        address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut
+    );
+    event TokenSet(address indexed token, bool supported);
+    event RateSet(uint256 rate);
+
+    error SameToken();
+    error UnsupportedToken(address token);
+    error ZeroAmount();
+    error EthValueMismatch();
+    error TokenSwapNoValue();
+    error SlippageExceeded(uint256 amountOut, uint256 minOut);
+    error InsufficientTreasury(address token, uint256 have, uint256 need);
+    error EthSendFailed();
+
+    constructor(address initialOwner, uint256 rate_, address[] memory tokens_) Ownable(initialOwner) {
+        rate = rate_;
+        emit RateSet(rate_);
+        for (uint256 i; i < tokens_.length; ++i) {
+            _addToken(tokens_[i]);
+            emit TokenSet(tokens_[i], true);
+        }
     }
 
-    // Call the HTS precompile to associate this contract with an HTS token
-    function associateToken(address _token) external {
-        (bool success, bytes memory result) = HTS_ADDRESS.call(
-            abi.encodeWithSelector(IHederaTokenService.associateToken.selector, address(this), _token)
-        );
-        require(success, "Association call failed");
-        
-        int64 responseCode = abi.decode(result, (int64));
-        require(responseCode == 22, "Association failed, response != 22 (SUCCESS)");
+    /// @return amountOut for swapping `amountIn` of `tokenIn` into `tokenOut` (0 sentinel = ETH).
+    function quote(address tokenIn, address tokenOut, uint256 amountIn) public view returns (uint256) {
+        if (tokenIn == tokenOut) return 0;
+        if (tokenIn == ETH) return amountIn * rate; // ETH -> token
+        if (tokenOut == ETH) return amountIn / rate; // token -> ETH
+        return amountIn; // token <-> token (both pegged 1:1)
     }
 
-    // Function to buy tokens
-    function buyTokens() public payable {
-        require(msg.value > 0, "Send HBAR to buy tokens");
+    /// @param tokenIn  address(0) for ETH, else a supported ERC-20 (approve first)
+    /// @param tokenOut address(0) for ETH, else a supported ERC-20
+    /// @param amountIn ETH: must equal msg.value. ERC-20: pulled via transferFrom.
+    function swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minOut)
+        external
+        payable
+        nonReentrant
+        returns (uint256 amountOut)
+    {
+        if (tokenIn == tokenOut) revert SameToken();
+        if (tokenIn != ETH && !isSupported[tokenIn]) revert UnsupportedToken(tokenIn);
+        if (tokenOut != ETH && !isSupported[tokenOut]) revert UnsupportedToken(tokenOut);
 
-        uint256 amountToBuy = msg.value * tokensPerHbar;
-        uint256 vendorBalance = teraToken.balanceOf(address(this));
+        if (tokenIn == ETH) {
+            if (msg.value == 0 || msg.value != amountIn) revert EthValueMismatch();
+        } else {
+            if (msg.value != 0) revert TokenSwapNoValue();
+            if (amountIn == 0) revert ZeroAmount();
+            IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+        }
 
-        require(vendorBalance >= amountToBuy, "Treasury has insufficient TERA balance");
+        amountOut = quote(tokenIn, tokenOut, amountIn);
+        if (amountOut == 0) revert ZeroAmount();
+        if (amountOut < minOut) revert SlippageExceeded(amountOut, minOut);
 
-        bool sent = teraToken.transfer(msg.sender, amountToBuy);
-        require(sent, "Failed to transfer token to user");
+        if (tokenOut == ETH) {
+            uint256 have = address(this).balance;
+            if (have < amountOut) revert InsufficientTreasury(ETH, have, amountOut);
+            (bool ok,) = msg.sender.call{value: amountOut}("");
+            if (!ok) revert EthSendFailed();
+        } else {
+            uint256 have = IERC20(tokenOut).balanceOf(address(this));
+            if (have < amountOut) revert InsufficientTreasury(tokenOut, have, amountOut);
+            IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
+        }
 
-        emit TokensPurchased(msg.sender, msg.value, amountToBuy);
+        emit Swapped(msg.sender, tokenIn, tokenOut, amountIn, amountOut);
     }
 
-    // Function to sell TERA for HBAR
-    function sellTera(uint256 teraAmount) public {
-        require(teraAmount > 0, "Amount must be greater than 0");
-        uint256 hbarAmount = teraAmount / tokensPerHbar;
-        require(address(this).balance >= hbarAmount, "Insufficient HBAR in treasury");
-
-        bool success = teraToken.transferFrom(msg.sender, address(this), teraAmount);
-        require(success, "TERA transfer failed");
-
-        payable(msg.sender).transfer(hbarAmount);
-        emit TokensSold(msg.sender, teraAmount, hbarAmount);
+    function supportedTokens() external view returns (address[] memory) {
+        return _tokens;
     }
 
-    // Function to buy USDC with HBAR
-    function buyUsdc() public payable {
-        require(msg.value > 0, "Send HBAR to buy USDC");
-        uint256 amountToBuy = msg.value * usdcPerHbar;
-        uint256 vendorBalance = IERC20(usdcToken).balanceOf(address(this));
-        
-        require(vendorBalance >= amountToBuy, "Treasury has insufficient USDC balance");
+    // --- admin ---
 
-        bool sent = IERC20(usdcToken).transfer(msg.sender, amountToBuy);
-        require(sent, "Failed to transfer USDC to user");
-
-        emit UsdcPurchased(msg.sender, msg.value, amountToBuy);
+    function setToken(address token, bool supported) external onlyOwner {
+        if (supported) _addToken(token);
+        else isSupported[token] = false;
+        emit TokenSet(token, supported);
     }
 
-    // Function to sell USDC for HBAR
-    function sellUsdc(uint256 usdcAmount) public {
-        require(usdcAmount > 0, "Amount must be greater than 0");
-        uint256 hbarAmount = usdcAmount / usdcPerHbar;
-        require(address(this).balance >= hbarAmount, "Insufficient HBAR in treasury");
-
-        bool success = IERC20(usdcToken).transferFrom(msg.sender, address(this), usdcAmount);
-        require(success, "USDC transfer failed");
-
-        payable(msg.sender).transfer(hbarAmount);
-        emit UsdcSold(msg.sender, usdcAmount, hbarAmount);
+    function setRate(uint256 rate_) external onlyOwner {
+        rate = rate_;
+        emit RateSet(rate_);
     }
 
-    // Function to swap TERA for USDC
-    function swapTeraForUsdc(uint256 teraAmount) public {
-        require(teraAmount > 0, "Amount must be greater than 0");
-        // Calculate HBAR equivalent then USDC amount
-        uint256 hbarEquivalent = teraAmount / tokensPerHbar;
-        uint256 usdcAmount = hbarEquivalent * usdcPerHbar;
-        
-        require(IERC20(usdcToken).balanceOf(address(this)) >= usdcAmount, "Insufficient USDC in treasury");
-
-        bool successTera = teraToken.transferFrom(msg.sender, address(this), teraAmount);
-        require(successTera, "TERA transfer failed");
-
-        bool successUsdc = IERC20(usdcToken).transfer(msg.sender, usdcAmount);
-        require(successUsdc, "USDC transfer failed");
-
-        emit SwappedTeraForUsdc(msg.sender, teraAmount, usdcAmount);
+    function withdrawEth(uint256 amount) external onlyOwner {
+        (bool ok,) = msg.sender.call{value: amount}("");
+        if (!ok) revert EthSendFailed();
     }
 
-    // Function to swap USDC for TERA
-    function swapUsdcForTera(uint256 usdcAmount) public {
-        require(usdcAmount > 0, "Amount must be greater than 0");
-        uint256 hbarEquivalent = usdcAmount / usdcPerHbar;
-        uint256 teraAmount = hbarEquivalent * tokensPerHbar;
-
-        require(teraToken.balanceOf(address(this)) >= teraAmount, "Insufficient TERA in treasury");
-
-        bool successUsdc = IERC20(usdcToken).transferFrom(msg.sender, address(this), usdcAmount);
-        require(successUsdc, "USDC transfer failed");
-
-        bool successTera = teraToken.transfer(msg.sender, teraAmount);
-        require(successTera, "TERA transfer failed");
-
-        emit SwappedUsdcForTera(msg.sender, usdcAmount, teraAmount);
+    function withdrawToken(IERC20 token, uint256 amount) external onlyOwner {
+        token.safeTransfer(msg.sender, amount);
     }
 
-    // Allow owner to withdraw HBAR
-    function withdraw() public {
-        require(msg.sender == owner, "Only owner can withdraw");
-        uint256 balance = address(this).balance;
-        require(balance > 0, "No HBAR to withdraw");
-
-        (bool sent, ) = msg.sender.call{value: balance}("");
-        require(sent, "Failed to send HBAR");
+    function _addToken(address token) private {
+        if (token == address(0)) revert UnsupportedToken(token);
+        if (!isSupported[token]) {
+            isSupported[token] = true;
+            _tokens.push(token);
+        }
     }
 
-    receive() external payable {
-        buyTokens();
-    }
+    receive() external payable {} // plain ETH funding, no auto-swap
 }
