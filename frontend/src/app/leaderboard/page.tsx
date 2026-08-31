@@ -16,32 +16,30 @@ const XP_PER_TX = 20;
 const isAddr = (x?: string): x is `0x${string}` => !!x && /^0x[a-fA-F0-9]{40}$/.test(x);
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
-// contracts whose inbound user transactions count toward XP
+// core protocol contracts — inbound user transactions here count toward XP
 const TRACKED = (
   [
     [A.PrivateTradingVault, "Vault"],
     [A.ZenStakingPool, "Staking"],
     [A.TokenVendor, "Venue"],
-    [A.TERA, "TERA"],
-    [A.USDC, "USDC"],
-    [A.ZEN, "ZEN"],
   ] as [string, string][]
 ).filter(([a]) => isAddr(a));
 
-const METHODS: Record<string, string> = {
+// only real user actions earn XP — admin config, plain transfers, approvals and
+// test-token mints are excluded.
+const COUNTED: Record<string, string> = {
   "0x6e553f65": "deposit",
   "0x94bf804d": "mint",
   "0xb460af94": "withdraw",
   "0xba087652": "redeem",
-  "0x9f40a7b3": "requestRedeem",
-  "0x1e9a6950": "claimRedeem",
+  "0xaa2f892d": "requestRedeem",
+  "0xe46cf747": "claimRedeem",
+  "0x3d61b286": "emergencyRedeem",
   "0xa694fc3a": "stake",
   "0x2e17de78": "unstake",
   "0x4e71d92d": "claim",
   "0xe9fad8ee": "exit",
-  "0x40c10f19": "mint",
-  "0x095ea7b3": "approve",
-  "0xd004f0f7": "swap",
+  "0xfe029156": "swap",
 };
 
 type Tx = { hash: string; from: string; label: string; method: string; ts: number };
@@ -67,11 +65,13 @@ export default function LeaderboardPage() {
             for (const t of j.result) {
               if ((t.to || "").toLowerCase() !== addr.toLowerCase()) continue; // skip deploys / outbound
               if (t.isError !== "0") continue;
+              const method = COUNTED[(t.input || "0x").slice(0, 10)];
+              if (!method) continue; // admin / transfer / approve / test-token mint — not an XP action
               all.push({
                 hash: t.hash,
                 from: (t.from || "").toLowerCase(),
                 label,
-                method: METHODS[(t.input || "0x").slice(0, 10)] ?? (t.input === "0x" ? "transfer" : "call"),
+                method,
                 ts: Number(t.timeStamp) * 1000,
               });
             }
