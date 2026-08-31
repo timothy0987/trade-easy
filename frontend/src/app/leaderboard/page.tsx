@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { Vault, ArrowLeftRight, Trophy, Loader2, ExternalLink } from "lucide-react";
+import { Vault, ArrowLeftRight, Trophy, Loader2, ExternalLink, Zap } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
@@ -15,6 +15,7 @@ const XP_PER_TX = 20;
 
 const isAddr = (x?: string): x is `0x${string}` => !!x && /^0x[a-fA-F0-9]{40}$/.test(x);
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const hue = (a: string) => parseInt(a.slice(2, 8), 16) % 360;
 
 // core protocol contracts — inbound user transactions here count toward XP
 const TRACKED = (
@@ -49,6 +50,7 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [visible, setVisible] = useState(50);
 
   useEffect(() => {
     let alive = true;
@@ -105,9 +107,6 @@ export default function LeaderboardPage() {
     .map(([addr, s]) => ({ addr, ...s, xp: s.total * XP_PER_TX }))
     .sort((a, b) => b.xp - a.xp);
 
-  const totalTx = txs.length;
-  const totalXp = totalTx * XP_PER_TX;
-
   return (
     <main className="min-h-screen px-4 pb-20 pt-28 flex flex-col items-center">
       <div className="ambient-glow-purple top-0 -left-20" />
@@ -151,59 +150,67 @@ export default function LeaderboardPage() {
           <div className="card p-8 text-center text-[var(--color-hz-danger)]">{err}</div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-4">
-              <Stat label="Users" value={ranked.length.toLocaleString()} />
-              <Stat label="Transactions" value={totalTx.toLocaleString()} gold />
-              <Stat label="XP awarded" value={totalXp.toLocaleString()} gold />
-            </div>
-
-            <div className="card p-6">
-              <h3 className="font-bold mb-3">Ranking</h3>
-              {ranked.length === 0 ? (
-                <p className="text-[var(--color-ink-3)] text-sm">No activity yet — be the first.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-[var(--color-ink-3)] text-xs border-b border-[var(--color-border)]">
-                        <th className="text-left pb-2 font-medium w-8">#</th>
-                        <th className="text-left pb-2 font-medium">Address</th>
-                        <th className="text-left pb-2 font-medium">Activity</th>
-                        <th className="text-right pb-2 font-medium">Txns</th>
-                        <th className="text-right pb-2 font-medium">XP</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ranked.map((u, i) => {
-                        const you = address && u.addr === address.toLowerCase();
-                        return (
-                          <tr key={u.addr} className={`border-b border-[var(--color-border)] last:border-0 ${you ? "bg-[var(--color-hz-gold)]/10" : ""}`}>
-                            <td className="py-2.5 font-mono text-[var(--color-ink-3)]">{i + 1}</td>
-                            <td className="py-2.5">
-                              <a href={`${EXPLORER}/address/${u.addr}`} target="_blank" rel="noreferrer" className="font-mono text-xs hover:text-[var(--color-hz-navy)] inline-flex items-center gap-1">
-                                {short(u.addr)} {you && <span className="text-[10px] uppercase bg-[var(--color-hz-gold)]/30 text-[var(--color-hz-gold-deep)] px-1.5 rounded">you</span>}
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            </td>
-                            <td className="py-2.5">
-                              <span className="flex flex-wrap gap-1">
-                                {Object.entries(u.labels).map(([l, n]) => (
-                                  <span key={l} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-ink-2)]">
-                                    {l} {n}
-                                  </span>
-                                ))}
-                              </span>
-                            </td>
-                            <td className="py-2.5 text-right font-mono">{u.total}</td>
-                            <td className="py-2.5 text-right font-mono font-bold text-[var(--color-hz-gold-deep)]">{u.xp}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+            {ranked.length === 0 ? (
+              <div className="card p-10 text-center text-[var(--color-ink-3)]">No activity yet — be the first.</div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  {ranked.slice(0, visible).map((u, i) => {
+                    const you = address && u.addr === address.toLowerCase();
+                    return (
+                      <div
+                        key={u.addr}
+                        className={`card px-4 py-3 flex items-center gap-3 ${you ? "ring-2 ring-[var(--color-hz-gold)]" : ""}`}
+                      >
+                        <span className="w-7 shrink-0 text-center font-mono text-sm text-[var(--color-ink-3)]">{i + 1}</span>
+                        <span
+                          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
+                          style={{ background: `hsl(${hue(u.addr)} 55% 45%)` }}
+                        >
+                          {u.addr.slice(2, 4).toUpperCase()}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <a
+                            href={`${EXPLORER}/address/${u.addr}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-mono font-semibold text-sm hover:text-[var(--color-hz-navy)] inline-flex items-center gap-1"
+                          >
+                            {short(u.addr)}
+                            {you && <span className="text-[10px] uppercase bg-[var(--color-hz-gold)]/30 text-[var(--color-hz-gold-deep)] px-1.5 rounded">you</span>}
+                            <ExternalLink className="w-3 h-3 text-[var(--color-ink-3)]" />
+                          </a>
+                          <div className="text-xs text-[var(--color-ink-3)] flex flex-wrap gap-x-2">
+                            <span>{u.total} transaction{u.total === 1 ? "" : "s"}</span>
+                            {Object.entries(u.labels).map(([l, n]) => (
+                              <span key={l}>· {l} {n}</span>
+                            ))}
+                          </div>
+                        </div>
+                        <span className="shrink-0 flex items-center gap-1.5 font-bold text-[var(--color-hz-navy)]">
+                          <span className="w-6 h-6 rounded-md bg-[var(--color-hz-navy)] flex items-center justify-center">
+                            <Zap className="w-3.5 h-3.5 text-[var(--color-hz-gold)]" fill="currentColor" />
+                          </span>
+                          {u.xp.toLocaleString()}
+                          <span className="text-xs text-[var(--color-ink-3)] font-medium">XP</span>
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  {visible < ranked.length && (
+                    <button onClick={() => setVisible((v) => v + 50)} className="btn-ghost px-6 py-2 text-sm font-semibold">
+                      Show more
+                    </button>
+                  )}
+                  <p className="text-xs text-[var(--color-ink-3)]">
+                    Showing {Math.min(visible, ranked.length)} of {ranked.length} user{ranked.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="card p-6">
               <h3 className="font-bold mb-3">Recent activity</h3>
@@ -230,14 +237,5 @@ export default function LeaderboardPage() {
         )}
       </div>
     </main>
-  );
-}
-
-function Stat({ label, value, gold }: { label: string; value: string; gold?: boolean }) {
-  return (
-    <div className="card p-5">
-      <div className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">{label}</div>
-      <div className={`text-2xl font-bold mt-1 ${gold ? "text-[var(--color-hz-gold-deep)]" : "text-[var(--color-hz-navy)]"}`}>{value}</div>
-    </div>
   );
 }
