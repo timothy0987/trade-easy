@@ -21,12 +21,13 @@ contracts/
                               redemption queue, mgmt+perf fees, permissionless emergency exit
     AgentRegistry.sol         agent key + attestation-hash liveness gate + timelocked rotation
     ZenStakingPool.sol        ZEN stakers earn a pro-rata share of the vault's fee shares
-    TokenVendor.sol           fixed-rate ETH/USDC/ZEN venue the agent swaps against
+    TokenVendor.sol           fixed-rate ETH/TERA/USDC/ZEN venue the agent swaps against
+    TERA.sol                  the project's native / reward token
     TradeEasy{Factory,Pair,Router}.sol   constant-product AMM (secondary venue)
     adapters/  interfaces/  mocks/
   scripts/    deployVault.js · deployStaking.js · deployZenSwap.js · fundContracts.js
   test/       24 passing
-frontend/     Next.js — /vault (depositor + manager) and /trade (the venue)
+frontend/     Next.js — /vault (depositor + manager), /trade (the venue), /leaderboard (20 XP / tx)
 docs/         SPEC.md · THREAT-MODEL.md · NETWORKS.md
 ```
 

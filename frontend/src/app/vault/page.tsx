@@ -18,6 +18,7 @@ import {
   Landmark,
   ArrowLeftRight,
   Droplets,
+  Trophy,
 } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
@@ -77,6 +78,7 @@ export default function VaultPage() {
             <span className="hidden sm:inline">Vault</span>
           </span>
           <NavLink href="/trade" icon={<ArrowLeftRight className="w-4 h-4" />} label="Venue" />
+          <NavLink href="/leaderboard" icon={<Trophy className="w-4 h-4" />} label="Leaderboard" />
         </div>
         <CustomConnectButton />
       </nav>

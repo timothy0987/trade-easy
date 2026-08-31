@@ -10,7 +10,7 @@ import {
   useSwitchChain,
 } from "wagmi";
 import { parseEther, erc20Abi, type Abi } from "viem";
-import { ArrowLeftRight, Loader2, ExternalLink, CheckCircle2, Vault, ChevronRight } from "lucide-react";
+import { ArrowLeftRight, Loader2, ExternalLink, CheckCircle2, Vault, ChevronRight, Trophy } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
@@ -23,7 +23,8 @@ const TESTNET_DOCS_URL = "https://horizen-2-docs.horizen.io/horizen-chain/networ
 const NATIVE = "ETH";
 const ZERO = "0x0000000000000000000000000000000000000000" as const;
 
-const symOf = (t: string) => (t === NATIVE ? "ETH" : t === A.USDC ? "USDC" : t === A.ZEN ? "ZEN" : "TOKEN");
+const symOf = (t: string) =>
+  t === NATIVE ? "ETH" : t === A.USDC ? "USDC" : t === A.ZEN ? "ZEN" : t === A.TERA ? "TERA" : "TOKEN";
 
 /* ------------------------------------------------------------------ */
 /*  Token selector                                                     */
@@ -43,11 +44,13 @@ function TokenSelector({
   const [open, setOpen] = useState(false);
   const usdc = A.USDC;
   const zen = A.ZEN;
+  const tera = A.TERA;
 
   const isNative = value === NATIVE;
   const isUsdc = usdc && value === usdc;
   const isZen = zen && value === zen;
-  const isCustom = value !== "" && !isNative && !isUsdc && !isZen;
+  const isTera = tera && value === tera;
+  const isCustom = value !== "" && !isNative && !isUsdc && !isZen && !isTera;
 
   const shownLabel = isNative
     ? NATIVE
@@ -55,6 +58,8 @@ function TokenSelector({
     ? "USDC"
     : isZen
     ? "ZEN"
+    : isTera
+    ? "TERA"
     : isCustom
     ? `${value.slice(0, 10)}…`
     : placeholder;
@@ -93,6 +98,12 @@ function TokenSelector({
             <Row onClick={() => { onChange(zen); setOpen(false); }}>
               <span>ZEN</span>
               <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-green)]/15 text-[var(--color-hz-green)] px-2 py-0.5 rounded-full">Horizen token</span>
+            </Row>
+          )}
+          {tera && (
+            <Row onClick={() => { onChange(tera); setOpen(false); }}>
+              <span>TERA</span>
+              <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-gold)]/25 text-[var(--color-hz-gold-deep)] px-2 py-0.5 rounded-full">Native token</span>
             </Row>
           )}
           <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
@@ -220,9 +231,9 @@ export default function TradePage() {
     }
   };
 
-  const mintTest = (which: "USDC" | "ZEN") => async () => {
+  const mintTest = (which: "USDC" | "ZEN" | "TERA") => async () => {
     if (!isConnected || !walletClient || !address || !publicClient) return showToast("Connect your wallet");
-    const tokenAddr = which === "USDC" ? A.USDC : A.ZEN;
+    const tokenAddr = which === "USDC" ? A.USDC : which === "ZEN" ? A.ZEN : A.TERA;
     if (!tokenAddr) return showToast(`${which} not deployed`);
     try {
       await ensureHorizen();
@@ -285,6 +296,13 @@ export default function TradePage() {
             <ArrowLeftRight className="w-4 h-4" />
             <span className="hidden sm:inline">Venue</span>
           </span>
+          <Link
+            href="/leaderboard"
+            className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"
+          >
+            <Trophy className="w-4 h-4" />
+            <span className="hidden sm:inline">Leaderboard</span>
+          </Link>
         </div>
         <div className="hidden md:flex items-center gap-2 border-r border-[var(--color-border)] pr-3 mr-1">
           <ZenPriceBadge />
@@ -300,7 +318,7 @@ export default function TradePage() {
               Trading Venue
             </h2>
             <p className="text-[var(--color-ink-2)] text-sm mt-1">
-              The fixed-rate venue the vault&apos;s agent swaps against. ETH · USDC · ZEN at 1 ETH = {rate} tokens.
+              The fixed-rate venue the vault&apos;s agent swaps against. ETH · TERA · USDC · ZEN at 1 ETH = {rate} tokens.
             </p>
           </div>
 
@@ -316,6 +334,8 @@ export default function TradePage() {
                 <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Amount in ({amountLabel})</label>
                 <span className="text-[11px] text-[var(--color-ink-3)]">
                   Get test{" "}
+                  <button type="button" onClick={mintTest("TERA")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">TERA</button>
+                  {" · "}
                   <button type="button" onClick={mintTest("USDC")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">USDC</button>
                   {" · "}
                   <button type="button" onClick={mintTest("ZEN")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">ZEN</button>

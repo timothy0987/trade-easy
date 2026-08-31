@@ -60,6 +60,16 @@ deposit / withdrawal / redemption settlement / trade, or via `accrueFees()`.
 - Beyond that: `requestRedeem(shares)` escrows shares → agent/owner unwinds → 
   `processRedeemRequests(ids)` fixes `assetsOwed` at NAV and burns shares → `claimRedeem(id)`.
 
+## Native token & leaderboard
+
+- **TERA** (`TERA.sol`) — the project's native token. Testnet: open `mint`. On a funded
+  mainnet build, `mint` is removed and supply comes from a capped, role-gated emissions
+  schedule driven by the leaderboard.
+- **Leaderboard** (`/leaderboard`) — every on-chain transaction to the vault, staking pool
+  or venue earns **20 XP**. Computed from the Horizen explorer's tx index (no contract, no
+  backend, no opt-in — tamper-proof). Funded-milestone plan: XP → TERA emissions, on-chain
+  XP token, and season resets.
+
 ## Privacy roadmap
 
 | Milestone | Privacy delivered |
@@ -73,4 +83,4 @@ deposit / withdrawal / redemption settlement / trade, or via `accrueFees()`.
 - Real oracle (uses `MockOracle`) — M1 task: TWAP over the AMM or a Horizen feed.
 - No per-depositor compliance gate (PureFi hook) — placeholder only.
 - Privacy is roadmap, not yet implemented — M1 demo shows enclave-run strategy, not shielded state.
-- `page.tsx` (mint/swap UI) still needs replacing with depositor + manager views.
+- Leaderboard is read-only explorer aggregation; on-chain XP token + TERA emissions are post-funding.
