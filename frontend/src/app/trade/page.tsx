@@ -150,6 +150,19 @@ function ZenPriceBadge() {
   );
 }
 
+// TERA has no market — every token the vendor lists is pegged 1:1 with the mock
+// USDC ($1), so 1 TERA = 1 USDC = $1.00.
+function TeraPriceBadge() {
+  return (
+    <span
+      title="TERA value from the fixed-rate vendor: every listed token is pegged 1:1 with the mock USDC ($1)."
+      className="text-[11px] font-mono font-semibold text-[var(--color-ink-2)] bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2.5 py-1 rounded-lg"
+    >
+      TERA&nbsp;<span className="text-[var(--color-hz-gold-deep)]">$1.00</span>
+    </span>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
@@ -305,6 +318,7 @@ export default function TradePage() {
           </Link>
         </div>
         <div className="hidden md:flex items-center gap-2 border-r border-[var(--color-border)] pr-3 mr-1">
+          <TeraPriceBadge />
           <ZenPriceBadge />
         </div>
         <CustomConnectButton />
