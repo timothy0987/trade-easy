@@ -22,14 +22,17 @@ async function main() {
   const vendor = A.TokenVendor;
   if (!vendor) throw new Error("TokenVendor missing from addresses.json — run deploy:venue first");
 
-  const vendorEth = hre.ethers.parseEther(process.env.FUND_VENDOR_ETH || "0.05");
+  let vendorEth = hre.ethers.parseEther(process.env.FUND_VENDOR_ETH || "0.05");
+  const gasBuffer = hre.ethers.parseEther("0.0006"); // L3 gas is tiny; keep a small cushion
   const bal = await hre.ethers.provider.getBalance(signer.address);
   console.log(`Signer ${signer.address}  ETH ${e(bal)}`);
-  if (bal < vendorEth + hre.ethers.parseEther("0.005")) {
-    throw new Error(
-      `Not enough ETH. Need ~${e(vendorEth + hre.ethers.parseEther("0.005"))} (fund + gas). ` +
-        `Bridge more to ${signer.address} at https://hub-testnet.horizen.io`
-    );
+
+  if (bal <= gasBuffer) {
+    throw new Error(`Only ${e(bal)} ETH — bridge more to ${signer.address} at https://hub-testnet.horizen.io`);
+  }
+  if (vendorEth + gasBuffer > bal) {
+    vendorEth = bal - gasBuffer;
+    console.log(`  capped to ${e(vendorEth)} ETH (all that's spendable after gas)`);
   }
 
   console.log(`\nFunding TokenVendor with ${e(vendorEth)} ETH...`);
