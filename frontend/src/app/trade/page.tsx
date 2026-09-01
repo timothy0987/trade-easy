@@ -295,13 +295,13 @@ export default function TradePage() {
       </SiteNav>
 
       <div className="w-full max-w-md z-10">
-        <div className="card p-8 flex flex-col gap-6">
+        <div className="card card-raised p-6 sm:p-7 flex flex-col gap-6">
           <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <ArrowLeftRight className="w-6 h-6 text-[var(--color-hz-gold-deep)]" />
+            <h1 className="text-[1.6rem] leading-tight font-bold tracking-tight text-[var(--color-hz-navy)] flex items-center gap-2.5">
+              <ArrowLeftRight className="w-6 h-6 text-[var(--color-hz-gold-deep)] shrink-0" />
               Trading Venue
-            </h2>
-            <p className="text-[var(--color-ink-2)] text-sm mt-1">
+            </h1>
+            <p className="text-[var(--color-ink-2)] text-sm mt-1.5">
               The fixed-rate venue the vault&apos;s agent swaps against. ETH · TERA · USDC · ZEN at 1 ETH = {rate} tokens.
             </p>
           </div>
@@ -332,9 +332,9 @@ export default function TradePage() {
               const r = swapRate();
               if (!r) return null;
               return (
-                <div className="flex items-center justify-between text-xs bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2">
-                  <span className="text-[var(--color-ink-3)]">Rate&nbsp;· {r.line}</span>
-                  {r.out && <span className="font-mono font-semibold text-[var(--color-hz-navy)]">{r.out}</span>}
+                <div className="flex items-center justify-between text-xs bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-[10px] px-3 py-2">
+                  <span className="text-[var(--color-ink-3)] tabular-nums">Rate&nbsp;· {r.line}</span>
+                  {r.out && <span className="font-mono font-semibold text-[var(--color-hz-navy)] tabular-nums">{r.out}</span>}
                 </div>
               );
             })()}
@@ -345,13 +345,13 @@ export default function TradePage() {
             </button>
           </form>
 
-          <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-2">
-            <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Need gas? Horizen Testnet uses ETH</span>
-            <a href={TESTNET_HUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between text-sm text-[var(--color-hz-navy)] hover:text-[var(--color-hz-gold-deep)] transition-colors">
-              Bridge ETH via the Horizen hub <ExternalLink className="w-3.5 h-3.5" />
+          <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider mb-1">Need gas? Horizen Testnet uses ETH</span>
+            <a href={TESTNET_HUB_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between text-sm text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)] hover:bg-[var(--color-surface-2)] -mx-2 px-2 py-2 rounded-lg transition-colors">
+              Bridge ETH via the Horizen hub <ExternalLink className="w-3.5 h-3.5 text-[var(--color-ink-3)]" />
             </a>
-            <a href={TESTNET_DOCS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between text-sm text-[var(--color-hz-navy)] hover:text-[var(--color-hz-gold-deep)] transition-colors">
-              Add network &amp; RPC details <ExternalLink className="w-3.5 h-3.5" />
+            <a href={TESTNET_DOCS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between text-sm text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)] hover:bg-[var(--color-surface-2)] -mx-2 px-2 py-2 rounded-lg transition-colors">
+              Add network &amp; RPC details <ExternalLink className="w-3.5 h-3.5 text-[var(--color-ink-3)]" />
             </a>
           </div>
         </div>

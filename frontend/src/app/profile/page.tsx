@@ -6,6 +6,7 @@ import { formatUnits, type Abi } from "viem";
 import { User, ExternalLink, Wallet, Coins, Camera, Loader2 } from "lucide-react";
 
 import { SiteNav } from "@/components/SiteNav";
+import { PageHeader } from "@/components/PageHeader";
 import addresses from "@/contracts/addresses.json";
 import ProfileRegistryAbi from "@/contracts/ProfileRegistry.json";
 
@@ -69,15 +70,14 @@ export default function ProfilePage() {
       <SiteNav />
 
       <div className="w-full max-w-2xl z-10 flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <User className="w-6 h-6 text-[var(--color-hz-gold-deep)]" /> Profile
-          </h1>
-          <p className="text-[var(--color-ink-2)] text-sm mt-0.5">Your picture, display name and token balances on Horizen Testnet.</p>
-        </div>
+        <PageHeader
+          icon={<User className="w-6 h-6 text-[var(--color-hz-gold-deep)] shrink-0" />}
+          title="Profile"
+          description="Your picture, display name and token balances on Horizen Testnet."
+        />
 
         {!isConnected ? (
-          <div className="card p-10 text-center">
+          <div className="card p-12 text-center">
             <Wallet className="w-9 h-9 text-[var(--color-ink-3)] mx-auto mb-3" />
             <p className="text-[var(--color-ink-2)]">Connect a wallet on Horizen Testnet.</p>
           </div>
@@ -310,7 +310,7 @@ function BalancesCard({ address }: { address: `0x${string}` }) {
           <tbody>
             <tr className="border-b border-[var(--color-border)]">
               <td className="py-2.5 font-semibold">ETH <span className="text-[10px] text-[var(--color-ink-3)] font-normal">gas</span></td>
-              <td className="py-2.5 text-right font-mono">
+              <td className="py-2.5 text-right font-mono tabular-nums">
                 {native ? Number(formatUnits(native.value, native.decimals)).toLocaleString(undefined, { maximumFractionDigits: 5 }) : "—"}
               </td>
               <td className="py-2.5 text-right text-[var(--color-ink-3)] text-xs">native</td>
@@ -318,7 +318,7 @@ function BalancesCard({ address }: { address: `0x${string}` }) {
             {rows.map((r) => (
               <tr key={r.addr} className="border-b border-[var(--color-border)] last:border-0">
                 <td className="py-2.5 font-semibold">{r.sym}</td>
-                <td className="py-2.5 text-right font-mono">{fmt(r.bal, r.dec)}</td>
+                <td className="py-2.5 text-right font-mono tabular-nums">{fmt(r.bal, r.dec)}</td>
                 <td className="py-2.5 text-right">
                   <a
                     href={`${EXPLORER}/token/${r.addr}`}

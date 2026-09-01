@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { SiteNav } from "@/components/SiteNav";
+import { PageHeader } from "@/components/PageHeader";
 import addresses from "@/contracts/addresses.json";
 import VaultAbiJson from "@/contracts/PrivateTradingVault.json";
 import RegistryAbiJson from "@/contracts/AgentRegistry.json";
@@ -54,12 +55,14 @@ const secs = (v: bigint | undefined) => {
 
 /* ------------------------------------------------------------------ */
 
+type ViewName = "deposit" | "manager";
+
 export default function VaultPage() {
-  const [view, setView] = useState<"deposit" | "manager">("deposit");
+  const [view, setView] = useState<ViewName>("deposit");
   const deployed = isAddr(VAULT);
 
   return (
-    <main className="min-h-screen px-4 pb-20 pt-28 flex flex-col items-center">
+    <main className="min-h-screen px-4 pb-20 pt-24 sm:pt-28 flex flex-col items-center">
       <div className="ambient-glow-purple top-0 -left-20" />
       <div className="ambient-glow-teal bottom-0 -right-20" />
 
@@ -68,31 +71,34 @@ export default function VaultPage() {
       <div className="w-full max-w-5xl z-10">
         {!deployed ? (
           <NotDeployed />
+        ) : view === "deposit" ? (
+          <DepositorView view={view} setView={setView} />
         ) : (
-          <>
-            <div className="flex gap-2 mb-6 animate-fadeIn">
-              <button
-                onClick={() => setView("deposit")}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                  view === "deposit" ? "btn-gold" : "btn-ghost"
-                }`}
-              >
-                Deposit
-              </button>
-              <button
-                onClick={() => setView("manager")}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                  view === "manager" ? "btn-gold" : "btn-ghost"
-                }`}
-              >
-                Manager
-              </button>
-            </div>
-            {view === "deposit" ? <DepositorView /> : <ManagerView />}
-          </>
+          <ManagerView view={view} setView={setView} />
         )}
       </div>
     </main>
+  );
+}
+
+function ViewToggle({ view, setView }: { view: ViewName; setView: (v: ViewName) => void }) {
+  return (
+    <div className="inline-flex p-1 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)]">
+      {(["deposit", "manager"] as const).map((v) => (
+        <button
+          key={v}
+          onClick={() => setView(v)}
+          aria-pressed={view === v}
+          className={`px-4 py-1.5 rounded-full text-sm font-semibold capitalize transition-colors ${
+            view === v
+              ? "bg-[var(--color-surface)] text-[var(--color-hz-navy)] shadow-sm"
+              : "text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]"
+          }`}
+        >
+          {v}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -211,12 +217,21 @@ function StatusPill({ d }: { d: ReturnType<typeof useVaultData> }) {
   return <Pill tone="green" icon={<Activity className="w-3.5 h-3.5" />}>Active</Pill>;
 }
 
-function Stat({ label, value, sub, gold }: { label: string; value: string; sub?: string; gold?: boolean }) {
+function StatStrip({ items }: { items: { label: string; value: string; sub?: string; accent?: boolean }[] }) {
   return (
-    <div className={`card p-5 ${gold ? "border-t-2 border-t-[var(--color-hz-gold)]" : ""}`}>
-      <div className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">{label}</div>
-      <div className="text-[1.375rem] font-bold mt-1 text-[var(--color-hz-navy)] tabular-nums tracking-tight">{value}</div>
-      {sub && <div className="text-xs text-[var(--color-ink-3)] mt-0.5 tabular-nums">{sub}</div>}
+    <div className="card p-5 sm:p-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
+        {items.map((it) => (
+          <div key={it.label} className="min-w-0">
+            <div className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider flex items-center gap-1.5">
+              {it.accent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-hz-gold)]" aria-hidden="true" />}
+              {it.label}
+            </div>
+            <div className="text-xl font-bold mt-1 text-[var(--color-hz-navy)] tabular-nums tracking-tight truncate">{it.value}</div>
+            {it.sub && <div className="text-xs text-[var(--color-ink-3)] mt-0.5 tabular-nums truncate">{it.sub}</div>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -235,7 +250,7 @@ function TxButton({ onClick, busy, disabled, children, tone = "gold" }: { onClic
 /*  Depositor view                                                     */
 /* ------------------------------------------------------------------ */
 
-function DepositorView() {
+function DepositorView({ view, setView }: { view: ViewName; setView: (v: ViewName) => void }) {
   const { address, isConnected } = useAccount();
   const d = useVaultData(address);
   const { rows, refetch: refetchReqs } = useRedeemRequests(d.requestCount);
@@ -315,22 +330,26 @@ function DepositorView() {
 
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-[var(--color-hz-gold-deep)]" /> Private Trading Vault
-          </h1>
-          <p className="text-[var(--color-ink-2)] text-sm mt-0.5">Pooled deposits · agent trades in a TEE · positions stay confidential</p>
-        </div>
-        <StatusPill d={d} />
-      </div>
+      <PageHeader
+        icon={<ShieldCheck className="w-6 h-6 text-[var(--color-hz-gold-deep)] shrink-0" />}
+        title="Private Trading Vault"
+        description="Pooled deposits · agent trades in a TEE · positions stay confidential"
+        actions={
+          <div className="flex items-center gap-3">
+            <StatusPill d={d} />
+            <ViewToggle view={view} setView={setView} />
+          </div>
+        }
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Vault NAV" value={fmt(d.totalAssets, dec, 2)} sub={d.assetSymbol} />
-        <Stat label="Price / Share" value={fmt(d.pricePerShare, 18, 5)} sub={`HWM ${fmt(d.highWater, 18, 5)}`} gold />
-        <Stat label="Your Shares" value={fmt(d.userShares, 18, 4)} sub="ptVAULT" />
-        <Stat label="Your Value" value={fmt(userValue, dec, 2)} sub={d.assetSymbol} />
-      </div>
+      <StatStrip
+        items={[
+          { label: "Vault NAV", value: fmt(d.totalAssets, dec, 2), sub: d.assetSymbol },
+          { label: "Price / Share", value: fmt(d.pricePerShare, 18, 5), sub: `HWM ${fmt(d.highWater, 18, 5)}`, accent: true },
+          { label: "Your Shares", value: fmt(d.userShares, 18, 4), sub: "ptVAULT" },
+          { label: "Your Value", value: fmt(userValue, dec, 2), sub: d.assetSymbol },
+        ]}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card p-6 flex flex-col gap-4">
@@ -432,7 +451,7 @@ function DepositorView() {
 /*  Manager view                                                       */
 /* ------------------------------------------------------------------ */
 
-function ManagerView() {
+function ManagerView({ view, setView }: { view: ViewName; setView: (v: ViewName) => void }) {
   const { address } = useAccount();
   const d = useVaultData(address);
   const { rows, refetch: refetchReqs } = useRedeemRequests(d.requestCount);
@@ -474,12 +493,12 @@ function ManagerView() {
 
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Cpu className="w-6 h-6 text-[var(--color-hz-navy)]" /> Manager Console
-        </h1>
-        <p className="text-[var(--color-ink-2)] text-sm mt-0.5">Supervisory controls. The autonomous agent trades on its own inside the TEE.</p>
-      </div>
+      <PageHeader
+        icon={<Cpu className="w-6 h-6 text-[var(--color-hz-navy)] shrink-0" />}
+        title="Manager Console"
+        description="Supervisory controls. The autonomous agent trades on its own inside the TEE."
+        actions={<ViewToggle view={view} setView={setView} />}
+      />
 
       <div className="card p-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -492,14 +511,14 @@ function ManagerView() {
               </a>
             </div>
           </div>
-          <div className="flex gap-6 text-sm">
+          <div className="flex gap-8 text-sm">
             <div>
-              <div className="text-[11px] text-[var(--color-ink-3)] uppercase">Attestation age</div>
-              <div className="font-mono">{secs(rg(2) as bigint)} <span className="text-[var(--color-ink-3)]">/ {secs(rg(4) as bigint)}</span></div>
+              <div className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Attestation age</div>
+              <div className="font-mono tabular-nums mt-0.5">{secs(rg(2) as bigint)} <span className="text-[var(--color-ink-3)]">/ {secs(rg(4) as bigint)}</span></div>
             </div>
             <div>
-              <div className="text-[11px] text-[var(--color-ink-3)] uppercase">Heartbeat age</div>
-              <div className="font-mono">{secs(rg(3) as bigint)} <span className="text-[var(--color-ink-3)]">/ {secs(rg(5) as bigint)}</span></div>
+              <div className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Heartbeat age</div>
+              <div className="font-mono tabular-nums mt-0.5">{secs(rg(3) as bigint)} <span className="text-[var(--color-ink-3)]">/ {secs(rg(5) as bigint)}</span></div>
             </div>
           </div>
         </div>
@@ -508,12 +527,14 @@ function ManagerView() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Max / trade" value={bps(d.maxTradeBps)} sub="of NAV" gold />
-        <Stat label="Max deployed" value={bps(d.maxDeployedBps)} sub={`now ${deployedPct}%`} gold />
-        <Stat label="Drawdown limit" value={bps(d.maxDrawdownBps)} sub="→ unwind-only" gold />
-        <Stat label="Deployed value" value={fmt(d.deployedValue, dec, 2)} sub={d.assetSymbol} />
-      </div>
+      <StatStrip
+        items={[
+          { label: "Max / trade", value: bps(d.maxTradeBps), sub: "of NAV" },
+          { label: "Max deployed", value: bps(d.maxDeployedBps), sub: `now ${deployedPct}%` },
+          { label: "Drawdown limit", value: bps(d.maxDrawdownBps), sub: "→ unwind-only" },
+          { label: "Deployed value", value: fmt(d.deployedValue, dec, 2), sub: d.assetSymbol },
+        ]}
+      />
 
       <div className="card p-6">
         <h3 className="font-bold mb-2">Held tokens (NAV legs)</h3>

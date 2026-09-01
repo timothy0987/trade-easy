@@ -6,6 +6,7 @@ import type { Abi } from "viem";
 import { Trophy, Loader2, ExternalLink, Zap } from "lucide-react";
 
 import { SiteNav } from "@/components/SiteNav";
+import { PageHeader } from "@/components/PageHeader";
 import addresses from "@/contracts/addresses.json";
 import ProfileRegistryAbi from "@/contracts/ProfileRegistry.json";
 
@@ -147,15 +148,16 @@ export default function LeaderboardPage() {
       <SiteNav />
 
       <div className="w-full max-w-3xl z-10 flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-[var(--color-hz-gold-deep)]" /> Leaderboard
-          </h1>
-          <p className="text-[var(--color-ink-2)] text-sm mt-0.5">
-            Every on-chain transaction with the vault, venue or staking pool earns <b>{XP_PER_TX} XP</b>.
-            Read straight from the Horizen explorer — nothing to opt into.
-          </p>
-        </div>
+        <PageHeader
+          icon={<Trophy className="w-6 h-6 text-[var(--color-hz-gold-deep)] shrink-0" />}
+          title="Leaderboard"
+          description={
+            <>
+              Every on-chain transaction with the vault, venue or staking pool earns <b>{XP_PER_TX} XP</b>.
+              Read straight from the Horizen explorer — nothing to opt into.
+            </>
+          }
+        />
 
         {loading ? (
           <div className="card p-10 text-center flex items-center justify-center gap-2 text-[var(--color-ink-2)]">
@@ -169,16 +171,26 @@ export default function LeaderboardPage() {
               <div className="card p-10 text-center text-[var(--color-ink-3)]">No activity yet — be the first.</div>
             ) : (
               <>
-                <div className="flex flex-col gap-2">
+                <div className="card divide-y divide-[var(--color-border)] overflow-hidden">
                   {ranked.slice(0, visible).map((u, i) => {
                     const you = address && u.addr === address.toLowerCase();
                     const p = profiles[u.addr];
+                    const rankCls =
+                      i === 0
+                        ? "text-[var(--color-hz-gold-deep)] font-bold"
+                        : i === 1
+                        ? "text-[var(--color-ink-2)] font-semibold"
+                        : i === 2
+                        ? "text-[#a97142] font-semibold"
+                        : "text-[var(--color-ink-3)]";
                     return (
                       <div
                         key={u.addr}
-                        className={`card px-4 py-3 flex items-center gap-3 ${you ? "ring-2 ring-[var(--color-hz-gold)]" : ""}`}
+                        className={`px-4 py-3 flex items-center gap-3 transition-colors ${
+                          you ? "bg-[var(--color-hz-gold-soft)]" : "hover:bg-[var(--color-surface-2)]"
+                        }`}
                       >
-                        <span className="w-7 shrink-0 text-center font-mono text-sm text-[var(--color-ink-3)]">{i + 1}</span>
+                        <span className={`w-7 shrink-0 text-center font-mono text-sm tabular-nums ${rankCls}`}>{i + 1}</span>
                         {p?.pfp ? (
                           <img src={p.pfp} alt="" className="w-9 h-9 shrink-0 rounded-full object-cover border border-[var(--color-border)]" />
                         ) : (
@@ -208,7 +220,7 @@ export default function LeaderboardPage() {
                             ))}
                           </div>
                         </div>
-                        <span className="shrink-0 flex items-center gap-1.5 font-bold text-[var(--color-hz-navy)]">
+                        <span className="shrink-0 flex items-center gap-1.5 font-bold text-[var(--color-hz-navy)] tabular-nums">
                           <span className="w-6 h-6 rounded-md bg-[var(--color-hz-navy)] flex items-center justify-center">
                             <Zap className="w-3.5 h-3.5 text-[var(--color-hz-gold)]" fill="currentColor" />
                           </span>
@@ -233,20 +245,20 @@ export default function LeaderboardPage() {
               </>
             )}
 
-            <div className="card p-6">
-              <h3 className="font-bold mb-3">Recent activity</h3>
+            <div className="card overflow-hidden">
+              <h3 className="font-bold px-5 py-3.5 border-b border-[var(--color-border)]">Recent activity</h3>
               {txs.length === 0 ? (
-                <p className="text-[var(--color-ink-3)] text-sm">Nothing yet.</p>
+                <p className="text-[var(--color-ink-3)] text-sm p-5">Nothing yet.</p>
               ) : (
-                <ul className="flex flex-col gap-2 text-sm">
+                <ul className="divide-y divide-[var(--color-border)] text-sm">
                   {txs.slice(0, 20).map((t) => (
-                    <li key={t.hash} className="flex items-center justify-between gap-3">
+                    <li key={t.hash} className="flex items-center justify-between gap-3 px-5 py-2.5 hover:bg-[var(--color-surface-2)] transition-colors">
                       <span className="flex items-center gap-2 min-w-0">
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--color-hz-navy)]/10 text-[var(--color-hz-navy)] shrink-0">{t.label}</span>
                         <span className="font-mono text-xs text-[var(--color-ink-2)]">{t.method}</span>
                         <span className="font-mono text-xs text-[var(--color-ink-3)] truncate">{short(t.from)}</span>
                       </span>
-                      <a href={`${EXPLORER}/tx/${t.hash}`} target="_blank" rel="noreferrer" className="text-xs text-[var(--color-hz-blue)] shrink-0 inline-flex items-center gap-1">
+                      <a href={`${EXPLORER}/tx/${t.hash}`} target="_blank" rel="noreferrer" className="text-xs text-[var(--color-hz-blue)] shrink-0 inline-flex items-center gap-1 tabular-nums">
                         {new Date(t.ts).toLocaleDateString()} <ExternalLink className="w-3 h-3" />
                       </a>
                     </li>
