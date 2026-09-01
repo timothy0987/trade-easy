@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
+import type { Abi } from "viem";
 import { Vault, ArrowLeftRight, Trophy, Loader2, ExternalLink, Zap, User } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
+import ProfileRegistryAbi from "@/contracts/ProfileRegistry.json";
 
 const A = addresses as Record<string, string>;
+const REGISTRY = A.ProfileRegistry as `0x${string}` | undefined;
+const REG_ABI = ProfileRegistryAbi as Abi;
 const EXPLORER = "https://explorer-testnet.horizen.io";
 const API = `${EXPLORER}/api`;
 const XP_PER_TX = 20;
@@ -62,25 +66,6 @@ export default function LeaderboardPage() {
   const [err, setErr] = useState<string | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [visible, setVisible] = useState(50);
-  const [profiles, setProfiles] = useState<Record<string, { pfp: string; name: string }>>({});
-
-  // pull any locally-saved profiles (picture + name) set on /profile
-  useEffect(() => {
-    try {
-      const map: Record<string, { pfp: string; name: string }> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i) || "";
-        const m = k.match(/^(pfp|name):(0x[a-f0-9]{40})$/);
-        if (!m) continue;
-        const a = m[2];
-        map[a] = map[a] ?? { pfp: "", name: "" };
-        map[a][m[1] as "pfp" | "name"] = localStorage.getItem(k) || "";
-      }
-      setProfiles(map);
-    } catch {
-      /* private mode */
-    }
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -134,6 +119,26 @@ export default function LeaderboardPage() {
   const ranked = [...byUser.entries()]
     .map(([addr, s]) => ({ addr, ...s, xp: s.total * XP_PER_TX }))
     .sort((a, b) => b.xp - a.xp);
+
+  // shared on-chain profiles (name + avatar) — one batch call for every ranked wallet
+  const rankedAddrs = useMemo(() => ranked.map((r) => r.addr as `0x${string}`), [ranked]);
+  const { data: chainProfiles } = useReadContract({
+    address: REGISTRY,
+    abi: REG_ABI,
+    functionName: "getProfiles",
+    args: [rankedAddrs],
+    query: { enabled: isAddr(REGISTRY) && rankedAddrs.length > 0, refetchInterval: 30_000 },
+  });
+  const profiles = useMemo(() => {
+    const map: Record<string, { pfp: string; name: string }> = {};
+    const arr = chainProfiles as { name: string; avatarURI: string }[] | undefined;
+    if (!arr) return map;
+    rankedAddrs.forEach((a, i) => {
+      const p = arr[i];
+      if (p && (p.name || p.avatarURI)) map[a.toLowerCase()] = { pfp: p.avatarURI, name: p.name };
+    });
+    return map;
+  }, [chainProfiles, rankedAddrs]);
 
   return (
     <main className="min-h-screen px-4 pb-20 pt-28 flex flex-col items-center">

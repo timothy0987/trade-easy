@@ -2,17 +2,20 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useAccount, useBalance, useReadContracts } from "wagmi";
+import { useAccount, useBalance, useReadContract, useReadContracts, useWriteContract, usePublicClient } from "wagmi";
 import { formatUnits, type Abi } from "viem";
 import { Vault, ArrowLeftRight, Trophy, User, ExternalLink, Wallet, Coins, Camera, Loader2 } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
+import ProfileRegistryAbi from "@/contracts/ProfileRegistry.json";
 
 const A = addresses as Record<string, string>;
 const EXPLORER = "https://explorer-testnet.horizen.io";
-const AVATAR_PX = 128;
-const MAX_AVATAR_BYTES = 200_000; // ~200 KB data URI ceiling
+const AVATAR_PX = 64;         // small — the avatar is stored on-chain
+const MAX_AVATAR_BYTES = 12_000; // matches ProfileRegistry.MAX_URI_BYTES
+const REGISTRY = A.ProfileRegistry as `0x${string}` | undefined;
+const REG_ABI = ProfileRegistryAbi as Abi;
 
 const isAddr = (x?: string): x is `0x${string}` => !!x && /^0x[a-fA-F0-9]{40}$/.test(x);
 const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "—");
@@ -38,30 +41,6 @@ const KNOWN = (
   .filter(([a]) => isAddr(a))
   .filter(([a], i, arr) => arr.findIndex(([b]) => b.toLowerCase() === a.toLowerCase()) === i);
 
-const ls = {
-  get: (k: string) => {
-    try {
-      return localStorage.getItem(k) ?? "";
-    } catch {
-      return "";
-    }
-  },
-  set: (k: string, v: string) => {
-    try {
-      localStorage.setItem(k, v);
-    } catch {
-      /* private mode / quota */
-    }
-  },
-  del: (k: string) => {
-    try {
-      localStorage.removeItem(k);
-    } catch {
-      /* ignore */
-    }
-  },
-};
-
 function resizeToDataUri(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -72,7 +51,7 @@ function resizeToDataUri(file: File): Promise<string> {
       if (!ctx) return reject(new Error("no canvas"));
       const s = Math.min(img.width, img.height);
       ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, AVATAR_PX, AVATAR_PX);
-      resolve(c.toDataURL("image/jpeg", 0.72));
+      resolve(c.toDataURL("image/jpeg", 0.55));
       URL.revokeObjectURL(img.src);
     };
     img.onerror = () => reject(new Error("bad image"));
@@ -140,18 +119,38 @@ export default function ProfilePage() {
   );
 }
 
+type ChainProfile = { name: string; avatarURI: string; updatedAt: bigint };
+
 function IdentityCard({ address }: { address: `0x${string}` }) {
-  const key = address.toLowerCase(); // storage keys are lowercase so other pages can find them
+  const client = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
+
+  const { data: onChain, refetch } = useReadContract({
+    address: REGISTRY,
+    abi: REG_ABI,
+    functionName: "getProfile",
+    args: [address],
+    query: { enabled: isAddr(REGISTRY), refetchInterval: 30_000 },
+  });
+  const saved = onChain as ChainProfile | undefined;
+  const savedName = saved?.name ?? "";
+  const savedPfp = saved?.avatarURI ?? "";
+
   const [pfp, setPfp] = useState("");
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false); // image processing
+  const [tx, setTx] = useState<"" | "save" | "clear">("");
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Seed local editor from chain once it loads / changes underneath us.
   useEffect(() => {
-    setPfp(ls.get(`pfp:${key}`));
-    setName(ls.get(`name:${key}`));
-  }, [key]);
+    setPfp(savedPfp);
+    setName(savedName);
+  }, [savedPfp, savedName]);
+
+  const dirty = pfp !== savedPfp || name.trim() !== savedName;
+  const hasProfile = !!savedName || !!savedPfp;
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -161,7 +160,6 @@ function IdentityCard({ address }: { address: `0x${string}` }) {
     try {
       const uri = await resizeToDataUri(f);
       if (uri.length > MAX_AVATAR_BYTES) throw new Error("Image is too large after compression — try a smaller one.");
-      ls.set(`pfp:${key}`, uri);
       setPfp(uri);
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "Couldn't read that image");
@@ -171,16 +169,66 @@ function IdentityCard({ address }: { address: `0x${string}` }) {
     }
   };
 
-  const removePfp = () => {
-    ls.del(`pfp:${key}`);
-    setPfp("");
+  const save = async () => {
+    if (!isAddr(REGISTRY)) return;
+    setErr("");
+    setTx("save");
+    try {
+      const hash = await writeContractAsync({
+        address: REGISTRY,
+        abi: REG_ABI,
+        functionName: "setProfile",
+        args: [name.trim(), pfp],
+      });
+      await client?.waitForTransactionReceipt({ hash });
+      await refetch();
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message.split("\n")[0] : "Transaction failed");
+    } finally {
+      setTx("");
+    }
   };
 
-  const saveName = (v: string) => {
-    setName(v);
-    if (v.trim()) ls.set(`name:${key}`, v.trim());
-    else ls.del(`name:${key}`);
+  const clear = async () => {
+    if (!isAddr(REGISTRY)) return;
+    setErr("");
+    setTx("clear");
+    try {
+      const hash = await writeContractAsync({
+        address: REGISTRY,
+        abi: REG_ABI,
+        functionName: "clearProfile",
+        args: [],
+      });
+      await client?.waitForTransactionReceipt({ hash });
+      setPfp("");
+      setName("");
+      await refetch();
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message.split("\n")[0] : "Transaction failed");
+    } finally {
+      setTx("");
+    }
   };
+
+  if (!isAddr(REGISTRY)) {
+    return (
+      <div className="card p-6">
+        <h3 className="font-bold mb-1.5 flex items-center gap-2">
+          <User className="w-5 h-5 text-[var(--color-hz-gold-deep)]" /> Identity
+        </h3>
+        <p className="text-sm text-[var(--color-ink-2)]">
+          The on-chain profile registry isn&apos;t deployed on this network yet. Run{" "}
+          <code className="font-mono text-xs bg-[var(--color-surface-2)] border border-[var(--color-border)] px-1.5 py-0.5 rounded">
+            npm run deploy:profile
+          </code>{" "}
+          in <span className="font-mono">contracts/</span>, then reload.
+        </p>
+      </div>
+    );
+  }
+
+  const pending = tx !== "";
 
   return (
     <div className="card p-6 flex flex-col sm:flex-row gap-6 items-center sm:items-start">
@@ -197,9 +245,9 @@ function IdentityCard({ address }: { address: `0x${string}` }) {
         )}
         <button
           onClick={() => fileRef.current?.click()}
-          disabled={busy}
+          disabled={busy || pending}
           className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[var(--color-hz-navy)] text-white flex items-center justify-center shadow-md disabled:opacity-50"
-          title="Upload photo"
+          title="Choose photo"
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
         </button>
@@ -211,9 +259,10 @@ function IdentityCard({ address }: { address: `0x${string}` }) {
           <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Display name</label>
           <input
             value={name}
-            onChange={(e) => saveName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             placeholder="Add a name"
             maxLength={40}
+            disabled={pending}
             className="field"
           />
         </div>
@@ -225,14 +274,29 @@ function IdentityCard({ address }: { address: `0x${string}` }) {
         >
           {short(address)} <ExternalLink className="w-3 h-3" />
         </a>
-        {pfp && (
-          <button onClick={removePfp} className="text-xs text-[var(--color-hz-danger)] hover:underline self-start">
-            Remove photo
+
+        <div className="flex flex-wrap items-center gap-2 mt-1">
+          <button onClick={save} disabled={!dirty || busy || pending} className="btn-gold text-sm px-4 py-1.5 disabled:opacity-50 inline-flex items-center gap-1.5">
+            {tx === "save" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {tx === "save" ? "Saving…" : "Save profile"}
           </button>
-        )}
-        {err && <p className="text-xs text-[var(--color-hz-danger)]">{err}</p>}
+          {pfp && (
+            <button onClick={() => setPfp("")} disabled={pending} className="btn-ghost text-sm px-3 py-1.5 disabled:opacity-50">
+              Remove photo
+            </button>
+          )}
+          {hasProfile && (
+            <button onClick={clear} disabled={pending} className="text-xs text-[var(--color-hz-danger)] hover:underline disabled:opacity-50 inline-flex items-center gap-1">
+              {tx === "clear" && <Loader2 className="w-3 h-3 animate-spin" />}
+              {tx === "clear" ? "Clearing…" : "Clear on-chain profile"}
+            </button>
+          )}
+        </div>
+
+        {dirty && !pending && <p className="text-[11px] text-[var(--color-hz-gold-deep)]">Unsaved changes — Save profile writes them on-chain.</p>}
+        {err && <p className="text-xs text-[var(--color-hz-danger)] break-words">{err}</p>}
         <p className="text-[11px] text-[var(--color-ink-3)]">
-          Stored in this browser only. On-chain shared profiles are on the roadmap.
+          Stored on-chain in <span className="font-mono">ProfileRegistry</span> — shared everywhere, including the leaderboard.
         </p>
       </div>
     </div>
