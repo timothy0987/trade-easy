@@ -60,6 +60,30 @@ body {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  max-width: calc(100vw - 1.5rem);
+}
+
+/* Phones: tuck the pill closer to the edge and tighten it up. Tabs collapse
+   into the hamburger (handled in SiteNav), so the row stays short. */
+@media (max-width: 767px) {
+  .levitating-nav {
+    top: 0.75rem;
+    gap: 0.4rem;
+    padding: 0.4rem 0.55rem;
+    width: max-content;
+  }
+}
+
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Card — the one surface primitive */

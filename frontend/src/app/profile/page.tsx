@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useAccount, useBalance, useReadContract, useReadContracts, useWriteContract, usePublicClient } from "wagmi";
 import { formatUnits, type Abi } from "viem";
-import { Vault, ArrowLeftRight, Trophy, User, ExternalLink, Wallet, Coins, Camera, Loader2 } from "lucide-react";
+import { User, ExternalLink, Wallet, Coins, Camera, Loader2 } from "lucide-react";
 
-import { CustomConnectButton } from "@/components/CustomConnectButton";
+import { SiteNav } from "@/components/SiteNav";
 import addresses from "@/contracts/addresses.json";
 import ProfileRegistryAbi from "@/contracts/ProfileRegistry.json";
 
@@ -59,20 +58,6 @@ function resizeToDataUri(file: File): Promise<string> {
   });
 }
 
-function NavLink({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active?: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
-        active ? "bg-[var(--color-hz-gold)]/20 text-[var(--color-hz-navy)]" : "text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"
-      }`}
-    >
-      {icon}
-      <span className="hidden sm:inline">{label}</span>
-    </Link>
-  );
-}
-
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
 
@@ -81,19 +66,7 @@ export default function ProfilePage() {
       <div className="ambient-glow-purple top-0 -left-20" />
       <div className="ambient-glow-teal bottom-0 -right-20" />
 
-      <nav className="levitating-nav">
-        <div className="flex items-center gap-2 pl-2 pr-1">
-          <img src="/logo.svg" alt="Private Vault" width={28} height={28} className="w-7 h-7" />
-          <span className="font-extrabold tracking-tight text-[var(--color-hz-navy)] text-[15px] hidden sm:block">Private Vault</span>
-        </div>
-        <div className="flex gap-0.5 border-l border-r border-[var(--color-border)] px-2 mx-1">
-          <NavLink href="/vault" icon={<Vault className="w-4 h-4" />} label="Vault" />
-          <NavLink href="/trade" icon={<ArrowLeftRight className="w-4 h-4" />} label="Venue" />
-          <NavLink href="/leaderboard" icon={<Trophy className="w-4 h-4" />} label="Leaderboard" />
-          <NavLink href="/profile" icon={<User className="w-4 h-4" />} label="Profile" active />
-        </div>
-        <CustomConnectButton />
-      </nav>
+      <SiteNav />
 
       <div className="w-full max-w-2xl z-10 flex flex-col gap-6">
         <div>

@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import type { Abi } from "viem";
-import { Vault, ArrowLeftRight, Trophy, Loader2, ExternalLink, Zap, User } from "lucide-react";
+import { Trophy, Loader2, ExternalLink, Zap } from "lucide-react";
 
-import { CustomConnectButton } from "@/components/CustomConnectButton";
+import { SiteNav } from "@/components/SiteNav";
 import addresses from "@/contracts/addresses.json";
 import ProfileRegistryAbi from "@/contracts/ProfileRegistry.json";
 
@@ -145,27 +144,7 @@ export default function LeaderboardPage() {
       <div className="ambient-glow-purple top-0 -left-20" />
       <div className="ambient-glow-teal bottom-0 -right-20" />
 
-      <nav className="levitating-nav">
-        <div className="flex items-center gap-2 pl-2 pr-1">
-          <img src="/logo.svg" alt="Private Vault" width={28} height={28} className="w-7 h-7" />
-          <span className="font-extrabold tracking-tight text-[var(--color-hz-navy)] text-[15px] hidden sm:block">Private Vault</span>
-        </div>
-        <div className="flex gap-0.5 border-l border-r border-[var(--color-border)] px-2 mx-1">
-          <Link href="/vault" className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]">
-            <Vault className="w-4 h-4" /> <span className="hidden sm:inline">Vault</span>
-          </Link>
-          <Link href="/trade" className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]">
-            <ArrowLeftRight className="w-4 h-4" /> <span className="hidden sm:inline">Venue</span>
-          </Link>
-          <span className="px-3.5 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 bg-[var(--color-hz-gold)]/20 text-[var(--color-hz-navy)]">
-            <Trophy className="w-4 h-4" /> <span className="hidden sm:inline">Leaderboard</span>
-          </span>
-          <Link href="/profile" className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]">
-            <User className="w-4 h-4" /> <span className="hidden sm:inline">Profile</span>
-          </Link>
-        </div>
-        <CustomConnectButton />
-      </nav>
+      <SiteNav />
 
       <div className="w-full max-w-3xl z-10 flex flex-col gap-6">
         <div>
