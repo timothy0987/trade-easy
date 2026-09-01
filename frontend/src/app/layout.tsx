@@ -13,14 +13,10 @@ export const metadata: Metadata = {
   title: "Private Trading Vault | Horizen",
   description:
     "A pooled vault on Horizen where an autonomous agent trades inside a TEE — strategy and positions stay confidential, solvency stays verifiable.",
-  icons: {
-    icon: "/Artboard_15_4x-100_1_-removebg-preview.png",
-    apple: "/Artboard_15_4x-100_1_-removebg-preview.png",
-  },
   openGraph: {
-    images: [
-      { url: "/Artboard_15_4x-100_1_-removebg-preview.png", width: 800, height: 600, alt: "Private Trading Vault" },
-    ],
+    title: "Private Trading Vault | Horizen",
+    description:
+      "A pooled vault on Horizen where an autonomous agent trades inside a TEE — strategy and positions stay confidential, solvency stays verifiable.",
   },
 };
 

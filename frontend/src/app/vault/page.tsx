@@ -4,7 +4,6 @@ import React, { useMemo, useState } from "react";
 import { useAccount, useReadContracts, useWriteContract } from "wagmi";
 import { formatUnits, parseUnits, type Abi } from "viem";
 import {
-  Vault,
   ShieldCheck,
   Cpu,
   Loader2,
@@ -214,10 +213,10 @@ function StatusPill({ d }: { d: ReturnType<typeof useVaultData> }) {
 
 function Stat({ label, value, sub, gold }: { label: string; value: string; sub?: string; gold?: boolean }) {
   return (
-    <div className="card p-5">
+    <div className={`card p-5 ${gold ? "border-t-2 border-t-[var(--color-hz-gold)]" : ""}`}>
       <div className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">{label}</div>
-      <div className={`text-2xl font-bold mt-1 ${gold ? "text-[var(--color-hz-gold-deep)]" : "text-[var(--color-hz-navy)]"}`}>{value}</div>
-      {sub && <div className="text-xs text-[var(--color-ink-3)] mt-0.5">{sub}</div>}
+      <div className="text-[1.375rem] font-bold mt-1 text-[var(--color-hz-navy)] tabular-nums tracking-tight">{value}</div>
+      {sub && <div className="text-xs text-[var(--color-ink-3)] mt-0.5 tabular-nums">{sub}</div>}
     </div>
   );
 }
@@ -319,7 +318,7 @@ function DepositorView() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Vault className="w-6 h-6 text-[var(--color-hz-gold-deep)]" /> Private Trading Vault
+            <ShieldCheck className="w-6 h-6 text-[var(--color-hz-gold-deep)]" /> Private Trading Vault
           </h1>
           <p className="text-[var(--color-ink-2)] text-sm mt-0.5">Pooled deposits · agent trades in a TEE · positions stay confidential</p>
         </div>

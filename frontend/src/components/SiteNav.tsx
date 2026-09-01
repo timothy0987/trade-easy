@@ -3,12 +3,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Vault, ArrowLeftRight, Trophy, User, Menu, X } from "lucide-react";
+import { ShieldCheck, ArrowLeftRight, Trophy, User, Menu, X } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 
 const TABS = [
-  { href: "/vault", label: "Vault", Icon: Vault },
+  { href: "/vault", label: "Vault", Icon: ShieldCheck },
   { href: "/trade", label: "Venue", Icon: ArrowLeftRight },
   { href: "/leaderboard", label: "Leaderboard", Icon: Trophy },
   { href: "/profile", label: "Profile", Icon: User },
