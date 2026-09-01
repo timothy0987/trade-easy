@@ -141,6 +141,7 @@ export default function ProfilePage() {
 }
 
 function IdentityCard({ address }: { address: `0x${string}` }) {
+  const key = address.toLowerCase(); // storage keys are lowercase so other pages can find them
   const [pfp, setPfp] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -148,9 +149,9 @@ function IdentityCard({ address }: { address: `0x${string}` }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setPfp(ls.get(`pfp:${address}`));
-    setName(ls.get(`name:${address}`));
-  }, [address]);
+    setPfp(ls.get(`pfp:${key}`));
+    setName(ls.get(`name:${key}`));
+  }, [key]);
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -160,7 +161,7 @@ function IdentityCard({ address }: { address: `0x${string}` }) {
     try {
       const uri = await resizeToDataUri(f);
       if (uri.length > MAX_AVATAR_BYTES) throw new Error("Image is too large after compression — try a smaller one.");
-      ls.set(`pfp:${address}`, uri);
+      ls.set(`pfp:${key}`, uri);
       setPfp(uri);
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "Couldn't read that image");
@@ -171,14 +172,14 @@ function IdentityCard({ address }: { address: `0x${string}` }) {
   };
 
   const removePfp = () => {
-    ls.del(`pfp:${address}`);
+    ls.del(`pfp:${key}`);
     setPfp("");
   };
 
   const saveName = (v: string) => {
     setName(v);
-    if (v.trim()) ls.set(`name:${address}`, v.trim());
-    else ls.del(`name:${address}`);
+    if (v.trim()) ls.set(`name:${key}`, v.trim());
+    else ls.del(`name:${key}`);
   };
 
   return (

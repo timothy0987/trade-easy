@@ -62,6 +62,25 @@ export default function LeaderboardPage() {
   const [err, setErr] = useState<string | null>(null);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [visible, setVisible] = useState(50);
+  const [profiles, setProfiles] = useState<Record<string, { pfp: string; name: string }>>({});
+
+  // pull any locally-saved profiles (picture + name) set on /profile
+  useEffect(() => {
+    try {
+      const map: Record<string, { pfp: string; name: string }> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || "";
+        const m = k.match(/^(pfp|name):(0x[a-f0-9]{40})$/);
+        if (!m) continue;
+        const a = m[2];
+        map[a] = map[a] ?? { pfp: "", name: "" };
+        map[a][m[1] as "pfp" | "name"] = localStorage.getItem(k) || "";
+      }
+      setProfiles(map);
+    } catch {
+      /* private mode */
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -169,31 +188,37 @@ export default function LeaderboardPage() {
                 <div className="flex flex-col gap-2">
                   {ranked.slice(0, visible).map((u, i) => {
                     const you = address && u.addr === address.toLowerCase();
+                    const p = profiles[u.addr];
                     return (
                       <div
                         key={u.addr}
                         className={`card px-4 py-3 flex items-center gap-3 ${you ? "ring-2 ring-[var(--color-hz-gold)]" : ""}`}
                       >
                         <span className="w-7 shrink-0 text-center font-mono text-sm text-[var(--color-ink-3)]">{i + 1}</span>
-                        <span
-                          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
-                          style={{ background: `hsl(${hue(u.addr)} 55% 45%)` }}
-                        >
-                          {u.addr.slice(2, 4).toUpperCase()}
-                        </span>
+                        {p?.pfp ? (
+                          <img src={p.pfp} alt="" className="w-9 h-9 shrink-0 rounded-full object-cover border border-[var(--color-border)]" />
+                        ) : (
+                          <span
+                            className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
+                            style={{ background: `hsl(${hue(u.addr)} 55% 45%)` }}
+                          >
+                            {u.addr.slice(2, 4).toUpperCase()}
+                          </span>
+                        )}
                         <div className="min-w-0 flex-1">
                           <a
                             href={`${EXPLORER}/address/${u.addr}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="font-mono font-semibold text-sm hover:text-[var(--color-hz-navy)] inline-flex items-center gap-1"
+                            className="font-semibold text-sm hover:text-[var(--color-hz-navy)] inline-flex items-center gap-1"
                           >
-                            {short(u.addr)}
+                            <span className={p?.name ? "" : "font-mono"}>{p?.name || short(u.addr)}</span>
                             {you && <span className="text-[10px] uppercase bg-[var(--color-hz-gold)]/30 text-[var(--color-hz-gold-deep)] px-1.5 rounded">you</span>}
                             <ExternalLink className="w-3 h-3 text-[var(--color-ink-3)]" />
                           </a>
                           <div className="text-xs text-[var(--color-ink-3)] flex flex-wrap gap-x-2">
-                            <span>{u.total} transaction{u.total === 1 ? "" : "s"}</span>
+                            {p?.name && <span className="font-mono">{short(u.addr)}</span>}
+                            <span>{p?.name ? "· " : ""}{u.total} transaction{u.total === 1 ? "" : "s"}</span>
                             {Object.entries(u.labels).map(([l, n]) => (
                               <span key={l}>· {l} {n}</span>
                             ))}
