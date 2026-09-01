@@ -10,7 +10,7 @@ import {
   useSwitchChain,
 } from "wagmi";
 import { parseEther, erc20Abi, type Abi } from "viem";
-import { ArrowLeftRight, Loader2, ExternalLink, CheckCircle2, Vault, ChevronRight, Trophy } from "lucide-react";
+import { ArrowLeftRight, Loader2, ExternalLink, CheckCircle2, Vault, ChevronRight, Trophy, User } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
@@ -315,6 +315,13 @@ export default function TradePage() {
           >
             <Trophy className="w-4 h-4" />
             <span className="hidden sm:inline">Leaderboard</span>
+          </Link>
+          <Link
+            href="/profile"
+            className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]"
+          >
+            <User className="w-4 h-4" />
+            <span className="hidden sm:inline">Profile</span>
           </Link>
         </div>
         <div className="hidden md:flex items-center gap-2 border-r border-[var(--color-border)] pr-3 mr-1">

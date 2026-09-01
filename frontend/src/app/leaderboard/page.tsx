@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { Vault, ArrowLeftRight, Trophy, Loader2, ExternalLink, Zap } from "lucide-react";
+import { Vault, ArrowLeftRight, Trophy, Loader2, ExternalLink, Zap, User } from "lucide-react";
 
 import { CustomConnectButton } from "@/components/CustomConnectButton";
 import addresses from "@/contracts/addresses.json";
@@ -136,6 +136,9 @@ export default function LeaderboardPage() {
           <span className="px-3.5 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 bg-[var(--color-hz-gold)]/20 text-[var(--color-hz-navy)]">
             <Trophy className="w-4 h-4" /> <span className="hidden sm:inline">Leaderboard</span>
           </span>
+          <Link href="/profile" className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]">
+            <User className="w-4 h-4" /> <span className="hidden sm:inline">Profile</span>
+          </Link>
         </div>
         <CustomConnectButton />
       </nav>
