@@ -17,17 +17,21 @@ const isAddr = (x?: string): x is `0x${string}` => !!x && /^0x[a-fA-F0-9]{40}$/.
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const hue = (a: string) => parseInt(a.slice(2, 8), 16) % 360;
 
-// core protocol contracts — inbound user transactions here count toward XP
-const TRACKED = (
+// every contract this project has deployed — current + superseded — so a wallet
+// that tested against an earlier venue / token still shows up.
+const CONTRACTS = (
   [
     [A.PrivateTradingVault, "Vault"],
     [A.ZenStakingPool, "Staking"],
     [A.TokenVendor, "Venue"],
+    // legacy venue addresses (replaced by redeploys)
+    ["0x5F78A883E1C91bE500A95C746713660E04bF4E89", "Venue"],
+    ["0xa61934d9EdF67D2dBE660f0Ea404685139f9E7Ca", "Venue"],
   ] as [string, string][]
 ).filter(([a]) => isAddr(a));
 
-// only real user actions earn XP — admin config, plain transfers, approvals and
-// test-token mints are excluded.
+// only genuine protocol actions earn XP — 20 each. Admin config, approvals,
+// test-token mints and plain transfers never count, whoever sends them.
 const COUNTED: Record<string, string> = {
   "0x6e553f65": "deposit",
   "0x94bf804d": "mint",
@@ -40,7 +44,14 @@ const COUNTED: Record<string, string> = {
   "0x2e17de78": "unstake",
   "0x4e71d92d": "claim",
   "0xe9fad8ee": "exit",
-  "0xfe029156": "swap",
+  // venue swaps
+  "0xfe029156": "swap", // new generic TokenVendor.swap(address,address,uint256,uint256)
+  "0xd0febe4c": "buy",
+  "0x3d870747": "sell",
+  "0xa92a684b": "buy",
+  "0x62856aff": "sell",
+  "0xfbedd0d9": "swap",
+  "0x2f94d492": "swap",
 };
 
 type Tx = { hash: string; from: string; label: string; method: string; ts: number };
@@ -56,26 +67,24 @@ export default function LeaderboardPage() {
     let alive = true;
     (async () => {
       try {
+        const seen = new Set<string>();
         const all: Tx[] = [];
         await Promise.all(
-          TRACKED.map(async ([addr, label]) => {
+          CONTRACTS.map(async ([addr, label]) => {
             const r = await fetch(
               `${API}?module=account&action=txlist&address=${addr}&startblock=0&endblock=99999999&sort=desc`
             );
             const j = await r.json();
             if (!Array.isArray(j.result)) return;
             for (const t of j.result) {
-              if ((t.to || "").toLowerCase() !== addr.toLowerCase()) continue; // skip deploys / outbound
+              if ((t.to || "").toLowerCase() !== addr.toLowerCase()) continue; // deploys / outbound
               if (t.isError !== "0") continue;
+              if (seen.has(t.hash)) continue;
+              const from = (t.from || "").toLowerCase();
               const method = COUNTED[(t.input || "0x").slice(0, 10)];
-              if (!method) continue; // admin / transfer / approve / test-token mint — not an XP action
-              all.push({
-                hash: t.hash,
-                from: (t.from || "").toLowerCase(),
-                label,
-                method,
-                ts: Number(t.timeStamp) * 1000,
-              });
+              if (!method) continue; // admin / approve / test-mint / transfer — never scores
+              seen.add(t.hash);
+              all.push({ hash: t.hash, from, label, method, ts: Number(t.timeStamp) * 1000 });
             }
           })
         );
