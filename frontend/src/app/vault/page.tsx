@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useAccount, useReadContracts, useWriteContract } from "wagmi";
-import { formatUnits, parseUnits, type Abi } from "viem";
+import { formatUnits, parseUnits, keccak256, stringToHex, type Abi } from "viem";
 import {
   ShieldCheck,
   Cpu,
@@ -15,6 +15,8 @@ import {
   Send,
   Landmark,
   Droplets,
+  Lock,
+  Info,
 } from "lucide-react";
 
 import { SiteNav } from "@/components/SiteNav";
@@ -53,6 +55,15 @@ const secs = (v: bigint | undefined) => {
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 };
 
+// M1 stub: the agent's legs are committed, not disclosed. Illustrative root —
+// keccak256 of the sorted leg set, derived here in the browser; in M1 the vault
+// writes this root and the leg list never appears on-chain.
+const ZERO_ROOT = `0x${"0".repeat(64)}` as const;
+const legCommitment = (legs: readonly string[]) =>
+  legs.length === 0
+    ? ZERO_ROOT
+    : keccak256(stringToHex([...legs].map((a) => a.toLowerCase()).sort().join(",")));
+
 /* ------------------------------------------------------------------ */
 
 type ViewName = "deposit" | "manager";
@@ -71,10 +82,23 @@ export default function VaultPage() {
       <div className="w-full max-w-5xl z-10">
         {!deployed ? (
           <NotDeployed />
-        ) : view === "deposit" ? (
-          <DepositorView view={view} setView={setView} />
         ) : (
-          <ManagerView view={view} setView={setView} />
+          <>
+            {view === "deposit" ? (
+              <DepositorView view={view} setView={setView} />
+            ) : (
+              <ManagerView view={view} setView={setView} />
+            )}
+            <div className="mt-6 card p-4 flex gap-3 text-xs text-[var(--color-ink-3)] leading-relaxed">
+              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+              <p>
+                <span className="font-semibold text-[var(--color-ink-2)]">Testnet prototype.</span>{" "}
+                Positions are committed, not disclosed (milestone&nbsp;M1). The trading venue is a fixed-rate mock.
+                The TEE attestation is a placeholder &mdash; M2 replaces it with a verified enclave attestation.
+                Full mechanism in the architecture note.
+              </p>
+            </div>
+          </>
         )}
       </div>
     </main>
@@ -322,6 +346,16 @@ function DepositorView({ view, setView }: { view: ViewName; setView: (v: ViewNam
   const [err, setErr] = useState<string | null>(null);
   const dec = d.assetDecimals;
 
+  const attn = useReadContracts({
+    contracts: [
+      { address: REGISTRY, abi: REGISTRY_ABI, functionName: "agent" },
+      { address: REGISTRY, abi: REGISTRY_ABI, functionName: "attestationAge" },
+    ] as never[],
+    query: { enabled: isAddr(REGISTRY), refetchInterval: 12_000 },
+  });
+  const attAgent = attn.data?.[0]?.result as string | undefined;
+  const attAge = attn.data?.[1]?.result as bigint | undefined;
+
   const myRequests = rows.filter((r) => address && r.owner.toLowerCase() === address.toLowerCase());
   const userValue =
     d.userShares !== undefined && d.pricePerShare !== undefined ? (d.userShares * d.pricePerShare) / 10n ** 18n : undefined;
@@ -394,7 +428,7 @@ function DepositorView({ view, setView }: { view: ViewName; setView: (v: ViewNam
       <PageHeader
         icon={<ShieldCheck className="w-6 h-6 text-[var(--color-hz-gold-deep)] shrink-0" />}
         title="Private Trading Vault"
-        description="Pooled deposits · agent trades in a TEE · positions stay confidential"
+        description="Pooled deposits · an autonomous agent trades under an on-chain mandate · positions stay confidential"
         actions={
           <div className="flex items-center gap-3">
             <StatusPill d={d} />
@@ -411,6 +445,25 @@ function DepositorView({ view, setView }: { view: ViewName; setView: (v: ViewNam
           { label: "Your Value", value: fmt(userValue, dec, 2), sub: d.assetSymbol },
         ]}
       />
+
+      <div className="card px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+        <span className="flex items-center gap-1.5 font-semibold text-[var(--color-ink-2)]">
+          <ShieldCheck className="w-3.5 h-3.5 text-[var(--color-hz-gold-deep)]" /> NAV attested
+        </span>
+        <span className="text-[var(--color-ink-3)]">
+          by{" "}
+          <a
+            href={`${EXPLORER}/address/${attAgent}`}
+            target="_blank"
+            rel="noreferrer"
+            className="font-mono text-[var(--color-hz-blue)] hover:underline"
+          >
+            {short(attAgent)}
+          </a>
+        </span>
+        <span className="text-[var(--color-ink-3)] tabular-nums">updated {secs(attAge)} ago</span>
+        <span className="text-[var(--color-ink-3)] sm:ml-auto">stub &mdash; M2 makes this an on-chain signed attestation</span>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card p-6 flex flex-col gap-4">
@@ -581,7 +634,7 @@ function ManagerView({ view, setView }: { view: ViewName; setView: (v: ViewName)
       <PageHeader
         icon={<Cpu className="w-6 h-6 text-[var(--color-hz-navy)] shrink-0" />}
         title="Manager Console"
-        description="Supervisory controls. The autonomous agent trades on its own inside the TEE."
+        description="Supervisory controls. The agent trades under an on-chain mandate; execution moves into a TEE in M2."
         actions={<ViewToggle view={view} setView={setView} />}
       />
 
@@ -617,22 +670,29 @@ function ManagerView({ view, setView }: { view: ViewName; setView: (v: ViewName)
           { label: "Max / trade", value: bps(d.maxTradeBps), sub: "of NAV" },
           { label: "Max deployed", value: bps(d.maxDeployedBps), sub: `now ${deployedPct}%` },
           { label: "Drawdown limit", value: bps(d.maxDrawdownBps), sub: "→ unwind-only" },
-          { label: "Deployed value", value: fmt(d.deployedValue, dec, 2), sub: d.assetSymbol },
+          { label: "Deployed", value: fmt(d.deployedValue, dec, 2), sub: `${d.assetSymbol} · attested` },
         ]}
       />
 
       <div className="card p-6">
-        <h3 className="font-bold mb-2">Held tokens (NAV legs)</h3>
+        <h3 className="font-bold mb-2 flex items-center gap-2">
+          <Lock className="w-4 h-4 text-[var(--color-hz-gold-deep)]" /> Portfolio commitment
+        </h3>
+        <p className="text-xs text-[var(--color-ink-3)] mb-3">
+          The agent&apos;s legs are committed, not disclosed &mdash; positions, sizes and venue routing stay off the public contract.
+        </p>
         {d.heldTokens.length === 0 ? (
-          <p className="text-[var(--color-ink-3)] text-sm">Fully in {d.assetSymbol}.</p>
+          <p className="text-[var(--color-ink-3)] text-sm">Fully in {d.assetSymbol} &mdash; nothing deployed.</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {d.heldTokens.map((t) => (
-              <a key={t} href={`${EXPLORER}/address/${t}`} target="_blank" rel="noreferrer" className="text-xs font-mono px-3 py-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-ink-2)] hover:text-[var(--color-hz-navy)]">
-                {short(t)}
-              </a>
-            ))}
-          </div>
+          <>
+            <div className="font-mono text-xs break-all bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-ink-2)]">
+              <span className="text-[var(--color-ink-3)]">executionAccountsRoot&nbsp;</span>
+              {legCommitment(d.heldTokens)}
+            </div>
+            <p className="text-[11px] text-[var(--color-ink-3)] mt-2">
+              Illustrative &mdash; keccak256 of the sorted leg set, derived in-browser. In M1 the vault writes this root and the leg list never appears on-chain.
+            </p>
+          </>
         )}
       </div>
 

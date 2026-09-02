@@ -400,12 +400,15 @@ export default function TradePage() {
       <div className="w-full max-w-md z-10">
         <div className="card card-raised p-6 sm:p-7 flex flex-col gap-6">
           <div>
-            <h1 className="text-[1.6rem] leading-tight font-bold tracking-tight text-[var(--color-hz-navy)] flex items-center gap-2.5">
+            <h1 className="text-[1.6rem] leading-tight font-bold tracking-tight text-[var(--color-hz-navy)] flex items-center gap-2.5 flex-wrap">
               <ArrowLeftRight className="w-6 h-6 text-[var(--color-hz-gold-deep)] shrink-0" />
               Trading Venue
+              <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-ink-3)]">
+                Mock · testnet
+              </span>
             </h1>
             <p className="text-[var(--color-ink-2)] text-sm mt-1.5">
-              The fixed-rate venue the vault&apos;s agent swaps against. ETH · TERA · USDC · ZEN at 1 ETH = {rate} tokens.
+              A fixed-rate stand-in for the venue the vault&apos;s agent swaps against &mdash; M2 routes to the Horizen private DEX. ETH · TERA · USDC · ZEN at 1 ETH = {rate} tokens.
             </p>
           </div>
 
