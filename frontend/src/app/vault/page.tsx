@@ -246,6 +246,67 @@ function TxButton({ onClick, busy, disabled, children, tone = "gold" }: { onClic
   );
 }
 
+/**
+ * Large amount input, modelled on a swap widget: label, oversized figure,
+ * a token pill, and a balance line with 25/50/75/MAX quick-fills.
+ */
+function AmountField({
+  label,
+  value,
+  onChange,
+  token,
+  balance,
+  onPercent,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  token: string;
+  balance: string;
+  onPercent?: (pct: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="w-full rounded-[14px] border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] px-4 py-3.5 flex flex-col gap-2.5 focus-within:border-[var(--color-hz-gold-deep)] focus-within:shadow-[0_0_0_3px_rgba(254,203,23,0.22)] transition-shadow">
+      <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-3">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          inputMode="decimal"
+          placeholder="0.00"
+          disabled={disabled}
+          className="min-w-0 flex-1 bg-transparent border-0 p-0 outline-none text-[1.75rem] leading-none font-bold tabular-nums text-[var(--color-hz-navy)] placeholder:text-[var(--color-ink-3)] disabled:opacity-50"
+        />
+        <span className="shrink-0 inline-flex items-center rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] px-3 py-1.5 text-sm font-bold text-[var(--color-hz-navy)]">
+          {token}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-[var(--color-ink-3)]">
+          Balance: <span className="tabular-nums text-[var(--color-ink-2)]">{balance}</span>
+        </span>
+        {onPercent && (
+          <div className="flex items-center gap-0.5">
+            {[25, 50, 75, 100].map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onPercent(p)}
+                disabled={disabled}
+                className="px-1.5 py-0.5 rounded-md text-[11px] font-semibold text-[var(--color-hz-blue)] hover:bg-[var(--color-surface)] disabled:opacity-40 transition-colors"
+              >
+                {p === 100 ? "MAX" : `${p}%`}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Depositor view                                                     */
 /* ------------------------------------------------------------------ */
@@ -353,20 +414,32 @@ function DepositorView({ view, setView }: { view: ViewName; setView: (v: ViewNam
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card p-6 flex flex-col gap-4">
-          <h3 className="font-bold flex items-center gap-2"><ArrowDownToLine className="w-5 h-5 text-[var(--color-hz-gold-deep)]" /> Deposit</h3>
-          <div className="flex items-center justify-between gap-2 text-xs text-[var(--color-ink-3)]">
-            <span>Wallet: {fmt(d.userAssetBal, dec, 2)} {d.assetSymbol} · Cap {fmt(d.depositCap, dec, 0)}</span>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-bold flex items-center gap-2"><ArrowDownToLine className="w-5 h-5 text-[var(--color-hz-gold-deep)]" /> Deposit</h3>
             <button
               onClick={mintTest}
               disabled={!isConnected || busy === "mint"}
-              className="shrink-0 font-semibold text-[var(--color-hz-blue)] hover:underline disabled:opacity-40 flex items-center gap-1"
+              className="shrink-0 text-xs font-semibold text-[var(--color-hz-blue)] hover:underline disabled:opacity-40 flex items-center gap-1"
               title={`Mint 10,000 test ${d.assetSymbol} to your wallet (testnet mock token)`}
             >
               {busy === "mint" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Droplets className="w-3 h-3" />}
               Get test {d.assetSymbol}
             </button>
           </div>
-          <input value={depAmt} onChange={(e) => setDepAmt(e.target.value)} placeholder={`Amount in ${d.assetSymbol}`} inputMode="decimal" className="field" />
+          <AmountField
+            label="You deposit"
+            value={depAmt}
+            onChange={setDepAmt}
+            token={d.assetSymbol}
+            balance={`${fmt(d.userAssetBal, dec, 4)} ${d.assetSymbol}`}
+            onPercent={
+              d.userAssetBal !== undefined
+                ? (p) => setDepAmt(formatUnits((d.userAssetBal! * BigInt(p)) / 100n, dec))
+                : undefined
+            }
+            disabled={d.paused || d.emergency}
+          />
+          <p className="text-xs text-[var(--color-ink-3)] -mt-1">Deposit cap {fmt(d.depositCap, dec, 0)} {d.assetSymbol}</p>
           <TxButton onClick={deposit} busy={busy === "deposit"} disabled={!isConnected || !depAmt || d.paused || d.emergency}>
             {needsApproval ? "Approve & Deposit" : "Deposit"}
           </TxButton>
@@ -375,10 +448,22 @@ function DepositorView({ view, setView }: { view: ViewName; setView: (v: ViewNam
 
         <div className="card p-6 flex flex-col gap-4">
           <h3 className="font-bold flex items-center gap-2"><ArrowUpFromLine className="w-5 h-5 text-[var(--color-hz-navy)]" /> Withdraw</h3>
-          <div className="text-xs text-[var(--color-ink-3)]">
-            Idle liquidity: {fmt(d.idleLiquidity, dec, 2)} {d.assetSymbol}. Larger exits queue until the agent unwinds.
-          </div>
-          <input value={wdShares} onChange={(e) => setWdShares(e.target.value)} placeholder="Shares (ptVAULT)" inputMode="decimal" className="field" />
+          <AmountField
+            label="You redeem"
+            value={wdShares}
+            onChange={setWdShares}
+            token="ptVAULT"
+            balance={`${fmt(d.userShares, 18, 4)} ptVAULT`}
+            onPercent={
+              d.userShares !== undefined
+                ? (p) => setWdShares(formatUnits((d.userShares! * BigInt(p)) / 100n, 18))
+                : undefined
+            }
+            disabled={d.emergency}
+          />
+          <p className="text-xs text-[var(--color-ink-3)] -mt-1">
+            Idle liquidity {fmt(d.idleLiquidity, dec, 2)} {d.assetSymbol} · larger exits queue until the agent unwinds.
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <TxButton onClick={instantWithdraw} busy={busy === "wd"} disabled={!isConnected || !wdShares || d.emergency} tone="navy">Instant</TxButton>
             <TxButton onClick={queueRedeem} busy={busy === "queue"} disabled={!isConnected || !wdShares || d.emergency} tone="ghost">Queue redemption</TxButton>
