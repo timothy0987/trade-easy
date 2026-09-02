@@ -10,7 +10,8 @@
     "deploy:staking": "hardhat run scripts/deployStaking.js --network horizenTestnet",
     "deploy:venue": "hardhat run scripts/deployZenSwap.js --network horizenTestnet",
     "deploy:profile": "hardhat run scripts/deployProfile.js --network horizenTestnet",
-    "fund": "hardhat run scripts/fundContracts.js --network horizenTestnet"
+    "fund": "hardhat run scripts/fundContracts.js --network horizenTestnet",
+    "seed:trade": "hardhat run scripts/seedTrade.js --network horizenTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
