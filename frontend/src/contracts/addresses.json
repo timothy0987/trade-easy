@@ -2,7 +2,7 @@
   "network": "horizenTestnet",
   "chainId": 2651420,
   "deployer": "0x408DC4477cC9D531d84a37DCf8eb62BDaf58D0C4",
-  "timestamp": "2026-08-31T18:37:07.196Z",
+  "timestamp": "2026-09-02T18:06:38.357Z",
   "PrivateTradingVault": "0xBBA15fc8B1D3b91BdC24D2f4a307Af3B05D0C2a6",
   "AgentRegistry": "0xEdaF74C13658c59dEf42dA7869D8271efb5e559d",
   "ZenStakingPool": "0xFc55B1431BfBee6A81dD8f8De9f5FbCd9192F818",
@@ -18,5 +18,6 @@
   "ZEN": "0x0c2cd9C1834fb83d8C825f8f0a21aC9377581fa1",
   "_zenNote": "Horizen ZEN — our own MockERC20 (18d, open mint) so the vendor, users and the staking pool can hold it. Point ZEN at Horizen's canonical token once published.",
   "_note": "All live on Horizen Testnet (chain 2651420). Generic TokenVendor supports ETH + [USDC, ZEN, TERA] at a fixed 1 ETH = 100 rate; fund it with ETH (`npm run fund`) for token->ETH swaps.",
-  "TERA": "0x24Ef0BFE955a45d47425751877fBCD82c6f8B967"
+  "TERA": "0x24Ef0BFE955a45d47425751877fBCD82c6f8B967",
+  "ProfileRegistry": "0x34a70096E96FA08A761fE63Ef2B8ED99C94B97F5"
 }
