@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from "react";
 import {
   useAccount,
+  useBalance,
   useReadContracts,
   usePublicClient,
   useWalletClient,
   useSwitchChain,
 } from "wagmi";
 import { parseEther, erc20Abi, type Abi } from "viem";
-import { ArrowLeftRight, Loader2, ExternalLink, CheckCircle2, ChevronRight } from "lucide-react";
+import { ArrowLeftRight, ArrowUpDown, Loader2, ExternalLink, CheckCircle2, ChevronDown } from "lucide-react";
 
 import { SiteNav } from "@/components/SiteNav";
 import addresses from "@/contracts/addresses.json";
@@ -30,12 +31,10 @@ const symOf = (t: string) =>
 /* ------------------------------------------------------------------ */
 
 function TokenSelector({
-  label,
   value,
   onChange,
   placeholder,
 }: {
-  label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
@@ -60,7 +59,7 @@ function TokenSelector({
     : isTera
     ? "TERA"
     : isCustom
-    ? `${value.slice(0, 10)}…`
+    ? `${value.slice(0, 6)}…`
     : placeholder;
 
   const Row = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (
@@ -74,15 +73,18 @@ function TokenSelector({
   );
 
   return (
-    <div className="flex flex-col gap-1.5 relative">
-      <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">{label}</label>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="field flex justify-between items-center cursor-pointer">
-        <span className="truncate pr-2">{shownLabel}</span>
-        <ChevronRight className={`w-4 h-4 text-[var(--color-ink-3)] transition-transform ${open ? "rotate-90" : ""}`} />
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border-strong)] pl-3.5 pr-2.5 py-2 text-sm font-bold text-[var(--color-hz-navy)] hover:border-[var(--color-hz-gold-deep)] transition-colors whitespace-nowrap"
+      >
+        {shownLabel}
+        <ChevronDown className={`w-4 h-4 text-[var(--color-ink-3)] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[var(--color-border)] rounded-xl overflow-hidden z-50 animate-fadeIn shadow-xl">
+        <div className="absolute top-full right-0 mt-2 w-60 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden z-50 animate-fadeIn shadow-xl">
           <Row onClick={() => { onChange(NATIVE); setOpen(false); }}>
             <span>{NATIVE}</span>
             <span className="text-[10px] uppercase tracking-wider bg-[var(--color-hz-navy)]/10 text-[var(--color-hz-navy)] px-2 py-0.5 rounded-full">Gas token</span>
@@ -111,6 +113,68 @@ function TokenSelector({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A swap panel — label, oversized figure, token pill, and a balance line
+ * with optional 25/50/75/MAX quick-fills. Mirrors the vault's AmountField.
+ */
+function SwapField({
+  label,
+  amount,
+  onAmountChange,
+  readOnly,
+  tokenNode,
+  balance,
+  onPercent,
+}: {
+  label: string;
+  amount: string;
+  onAmountChange?: (v: string) => void;
+  readOnly?: boolean;
+  tokenNode: React.ReactNode;
+  balance?: string;
+  onPercent?: (pct: number) => void;
+}) {
+  return (
+    <div className="rounded-[14px] border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] px-4 py-3.5 flex flex-col gap-2.5 focus-within:border-[var(--color-hz-gold-deep)] focus-within:shadow-[0_0_0_3px_rgba(254,203,23,0.22)] transition-shadow">
+      <span className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-3">
+        <input
+          value={amount}
+          onChange={(e) => onAmountChange?.(e.target.value)}
+          readOnly={readOnly}
+          inputMode="decimal"
+          placeholder="0.00"
+          className="min-w-0 flex-1 bg-transparent border-0 p-0 outline-none text-[1.75rem] leading-none font-bold tabular-nums text-[var(--color-hz-navy)] placeholder:text-[var(--color-ink-3)] read-only:text-[var(--color-ink-2)]"
+        />
+        <div className="shrink-0">{tokenNode}</div>
+      </div>
+      <div className="flex items-center justify-between gap-2 min-h-[1.25rem]">
+        <span className="text-xs text-[var(--color-ink-3)]">
+          {balance != null && (
+            <>
+              Balance: <span className="tabular-nums text-[var(--color-ink-2)]">{balance}</span>
+            </>
+          )}
+        </span>
+        {onPercent && (
+          <div className="flex items-center gap-0.5">
+            {[25, 50, 75, 100].map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onPercent(p)}
+                className="px-1.5 py-0.5 rounded-md text-[11px] font-semibold text-[var(--color-hz-blue)] hover:bg-[var(--color-surface)] transition-colors"
+              >
+                {p === 100 ? "MAX" : `${p}%`}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -165,6 +229,28 @@ function TeraPriceBadge() {
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
+
+const isErcAddr = (t: string) => t !== NATIVE && /^0x[a-fA-F0-9]{40}$/.test(t);
+
+/** Live balance for a token (native or ERC-20). All venue tokens are 18-dp. */
+function useTokenBalance(token: string, address?: `0x${string}`) {
+  const native = useBalance({
+    address,
+    query: { enabled: token === NATIVE && !!address, refetchInterval: 15_000 },
+  });
+  const erc = useReadContracts({
+    contracts: isErcAddr(token)
+      ? [{ address: token as `0x${string}`, abi: erc20Abi, functionName: "balanceOf", args: [address ?? ZERO] }]
+      : [],
+    query: { enabled: isErcAddr(token) && !!address, refetchInterval: 15_000 },
+  });
+  if (token === NATIVE) return native.data ? Number(native.data.value) / 1e18 : undefined;
+  if (isErcAddr(token)) {
+    const v = erc.data?.[0]?.result as bigint | undefined;
+    return v != null ? Number(v) / 1e18 : undefined;
+  }
+  return undefined;
+}
 
 export default function TradePage() {
   const { address, isConnected, chainId } = useAccount();
@@ -264,24 +350,41 @@ export default function TradePage() {
     }
   };
 
-  const amountLabel = symOf(tokenA);
-
   const { data: rateData } = useReadContracts({
     contracts: [{ address: A.TokenVendor as `0x${string}`, abi: TokenVendorAbi as Abi, functionName: "rate" }],
     query: { enabled: /^0x[a-fA-F0-9]{40}$/.test(A.TokenVendor || ""), refetchInterval: 60_000 },
   });
   const rate = Number((rateData?.[0]?.result as bigint | undefined) ?? 100n) || 100;
 
-  const swapRate = (): { line: string; out: string } | null => {
-    if (!tokenA || !tokenB || tokenA === tokenB) return null;
-    const aSym = symOf(tokenA);
-    const bSym = symOf(tokenB);
-    if (aSym === "TOKEN" || bSym === "TOKEN") return null;
-    const r = tokenA === NATIVE ? rate : tokenB === NATIVE ? 1 / rate : 1;
-    const line = `1 ${aSym} ≈ ${r.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${bSym}`;
-    const amt = parseFloat(swapAmountIn);
-    const out = Number.isFinite(amt) && amt > 0 ? `≈ ${(amt * r).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${bSym}` : "";
-    return { line, out };
+  const balA = useTokenBalance(tokenA, address as `0x${string}` | undefined);
+  const balB = useTokenBalance(tokenB, address as `0x${string}` | undefined);
+  const fmtBal = (n?: number) =>
+    n == null ? undefined : n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+
+  // fixed-rate leg conversion: 1 ETH = `rate` tokens, token↔token is 1:1
+  const legRate = tokenA && tokenB && tokenA !== tokenB
+    ? tokenA === NATIVE ? rate : tokenB === NATIVE ? 1 / rate : 1
+    : null;
+  const rateLine =
+    legRate != null && symOf(tokenA) !== "TOKEN" && symOf(tokenB) !== "TOKEN"
+      ? `1 ${symOf(tokenA)} ≈ ${legRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symOf(tokenB)}`
+      : "";
+  const amtIn = parseFloat(swapAmountIn);
+  const estOut =
+    legRate != null && Number.isFinite(amtIn) && amtIn > 0
+      ? (amtIn * legRate).toLocaleString(undefined, { maximumFractionDigits: 6 })
+      : "";
+
+  const flip = () => {
+    setTokenA(tokenB || NATIVE);
+    setTokenB(tokenA);
+    setSwapAmountIn("");
+  };
+
+  const setPercent = (p: number) => {
+    if (balA == null) return;
+    const raw = tokenA === NATIVE && p === 100 ? Math.max(0, balA - 0.001) : (balA * p) / 100;
+    setSwapAmountIn(raw ? String(Number(raw.toFixed(6))) : "0");
   };
 
   return (
@@ -306,40 +409,52 @@ export default function TradePage() {
             </p>
           </div>
 
-          <form onSubmit={handleSwap} className="flex flex-col gap-4">
-            <div className="z-40 relative">
-              <TokenSelector label="Token In" value={tokenA} onChange={setTokenA} placeholder="Select token" />
-            </div>
-            <div className="z-30 relative">
-              <TokenSelector label="Token Out" value={tokenB} onChange={setTokenB} placeholder="Select token" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-semibold text-[var(--color-ink-3)] uppercase tracking-wider">Amount in ({amountLabel})</label>
-                <span className="text-[11px] text-[var(--color-ink-3)]">
-                  Get test{" "}
-                  <button type="button" onClick={mintTest("TERA")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">TERA</button>
-                  {" · "}
-                  <button type="button" onClick={mintTest("USDC")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">USDC</button>
-                  {" · "}
-                  <button type="button" onClick={mintTest("ZEN")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">ZEN</button>
-                </span>
-              </div>
-              <input type="number" value={swapAmountIn} onChange={(e) => setSwapAmountIn(e.target.value)} placeholder="1" className="field" />
+          <form onSubmit={handleSwap} className="relative flex flex-col gap-2">
+            <div className="relative">
+              <SwapField
+                label="You pay"
+                amount={swapAmountIn}
+                onAmountChange={setSwapAmountIn}
+                tokenNode={<TokenSelector value={tokenA} onChange={setTokenA} placeholder="Select" />}
+                balance={fmtBal(balA)}
+                onPercent={balA != null ? setPercent : undefined}
+              />
             </div>
 
-            {(() => {
-              const r = swapRate();
-              if (!r) return null;
-              return (
-                <div className="flex items-center justify-between text-xs bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-[10px] px-3 py-2">
-                  <span className="text-[var(--color-ink-3)] tabular-nums">Rate&nbsp;· {r.line}</span>
-                  {r.out && <span className="font-mono font-semibold text-[var(--color-hz-navy)] tabular-nums">{r.out}</span>}
-                </div>
-              );
-            })()}
+            <div className="relative flex justify-center h-0 z-10">
+              <button
+                type="button"
+                onClick={flip}
+                aria-label="Swap direction"
+                className="absolute -top-3 w-8 h-8 rounded-full bg-[var(--color-surface)] border border-[var(--color-border-strong)] flex items-center justify-center text-[var(--color-hz-navy)] hover:bg-[var(--color-surface-2)] hover:border-[var(--color-hz-gold-deep)] shadow-sm transition-colors"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
+            </div>
 
-            <button type="submit" disabled={isSwapping} className="btn-gold w-full py-3.5 flex items-center justify-center gap-2">
+            <div className="relative">
+              <SwapField
+                label="You receive"
+                amount={estOut}
+                readOnly
+                tokenNode={<TokenSelector value={tokenB} onChange={setTokenB} placeholder="Select" />}
+                balance={fmtBal(balB)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--color-ink-3)] px-1 pt-1">
+              <span className="tabular-nums">{rateLine}</span>
+              <span>
+                Get test{" "}
+                <button type="button" onClick={mintTest("TERA")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">TERA</button>
+                {" · "}
+                <button type="button" onClick={mintTest("USDC")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">USDC</button>
+                {" · "}
+                <button type="button" onClick={mintTest("ZEN")} className="font-semibold text-[var(--color-hz-blue)] hover:underline">ZEN</button>
+              </span>
+            </div>
+
+            <button type="submit" disabled={isSwapping} className="btn-gold w-full py-3.5 flex items-center justify-center gap-2 mt-2">
               {isSwapping && <Loader2 className="w-4 h-4 animate-spin" />}
               {isSwapping ? "Swapping…" : "Execute Swap"}
             </button>
