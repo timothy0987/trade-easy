@@ -9,11 +9,18 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
+const SITE_URL = "https://www.trade-easy.xyz";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Private Trading Vault | Horizen",
   description:
     "A pooled vault on Horizen where an autonomous agent trades inside a TEE — strategy and positions stay confidential, solvency stays verifiable.",
+  alternates: { canonical: "/" },
   openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "Private Trading Vault",
     title: "Private Trading Vault | Horizen",
     description:
       "A pooled vault on Horizen where an autonomous agent trades inside a TEE — strategy and positions stay confidential, solvency stays verifiable.",
