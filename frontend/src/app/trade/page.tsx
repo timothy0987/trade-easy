@@ -13,6 +13,7 @@ import { parseEther, erc20Abi, type Abi } from "viem";
 import { ArrowLeftRight, ArrowUpDown, Loader2, ExternalLink, CheckCircle2, ChevronDown } from "lucide-react";
 
 import { SiteNav } from "@/components/SiteNav";
+import { SiteFooter } from "@/components/SiteFooter";
 import addresses from "@/contracts/addresses.json";
 import TokenVendorAbi from "@/contracts/TokenVendor.json";
 
@@ -481,6 +482,8 @@ export default function TradePage() {
           <p className="text-sm break-all">{toast}</p>
         </div>
       )}
+
+      <SiteFooter />
     </main>
   );
 }

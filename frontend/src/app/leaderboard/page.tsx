@@ -6,6 +6,7 @@ import type { Abi } from "viem";
 import { Trophy, Loader2, ExternalLink, Zap } from "lucide-react";
 
 import { SiteNav } from "@/components/SiteNav";
+import { SiteFooter } from "@/components/SiteFooter";
 import { PageHeader } from "@/components/PageHeader";
 import addresses from "@/contracts/addresses.json";
 import ProfileRegistryAbi from "@/contracts/ProfileRegistry.json";
@@ -269,6 +270,7 @@ export default function LeaderboardPage() {
           </>
         )}
       </div>
+      <SiteFooter />
     </main>
   );
 }

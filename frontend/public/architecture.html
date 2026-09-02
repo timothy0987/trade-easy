@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How the Private Trading Vault stays confidential</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How the trading agent's positions and strategy stay confidential on-chain while the vault's solvency stays independently verifiable.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --paper:      #fbfbfc;
+    --surface:    #ffffff;
+    --ink:        #0b1220;
+    --ink-soft:   #47525f;
+    --ink-faint:  #7a8391;
+    --rule:       #e4e7ee;
+    --rule-soft:  #eef0f5;
+    --accent:     #866400;
+    --accent-line:#c99a1e;
+    --good:       #0f7245;
+    --good-bg:    #e7f2ec;
+    --warn:       #825600;
+    --warn-bg:    #f5ecd9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #0a0e17;
+      --surface:    #111725;
+      --ink:        #e7e9f0;
+      --ink-soft:   #a4adbd;
+      --ink-faint:  #6b7488;
+      --rule:       #232b3b;
+      --rule-soft:  #1a212e;
+      --accent:     #ecc55f;
+      --accent-line:#b98f2e;
+      --good:       #55c78c;
+      --good-bg:    #10241b;
+      --warn:       #dba646;
+      --warn-bg:    #29210f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #0a0e17;
+    --surface:    #111725;
+    --ink:        #e7e9f0;
+    --ink-soft:   #a4adbd;
+    --ink-faint:  #6b7488;
+    --rule:       #232b3b;
+    --rule-soft:  #1a212e;
+    --accent:     #ecc55f;
+    --accent-line:#b98f2e;
+    --good:       #55c78c;
+    --good-bg:    #10241b;
+    --warn:       #dba646;
+    --warn-bg:    #29210f;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 17px;
+    line-height: 1.66;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .doc {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: clamp(2.5rem, 6vw, 4.5rem) 1.5rem 6rem;
+    animation: rise .5s ease both;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .doc { animation: none; } }
+
+  /* ---------- masthead ---------- */
+  .mast { display: flex; flex-direction: column; gap: 1.25rem; }
+  .backlink {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .74rem; letter-spacing: .04em;
+    color: var(--ink-faint);
+    text-decoration: none;
+    align-self: flex-start;
+  }
+  .backlink:hover { color: var(--accent); }
+  .kicker {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .72rem; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 {
+    font-family: "Spectral", Georgia, "Times New Roman", serif;
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.6rem);
+    line-height: 1.12;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .lede {
+    font-family: "Spectral", Georgia, serif;
+    font-size: 1.18rem;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0;
+    padding-left: 1rem;
+    border-left: 2px solid var(--accent-line);
+  }
+  .meta {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: .35rem 1.5rem;
+    margin: .25rem 0 0;
+    font-size: .84rem;
+  }
+  .meta dt {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .72rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-faint);
+    padding-top: .15rem;
+  }
+  .meta dd { margin: 0; color: var(--ink-soft); }
+
+  /* ---------- sections ---------- */
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  section + section {
+    margin-top: 3rem;
+    padding-top: 3rem;
+    border-top: 1px solid var(--rule);
+  }
+  h2 {
+    font-family: "Spectral", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    line-height: 1.25;
+    letter-spacing: -.005em;
+    text-wrap: balance;
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: .7rem;
+  }
+  h2 .num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .9rem;
+    font-weight: 500;
+    color: var(--accent);
+    flex: none;
+  }
+  h3 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    font-size: .95rem;
+    letter-spacing: .01em;
+    margin: .6rem 0 -.25rem;
+    color: var(--ink);
+  }
+  p { margin: 0; max-width: 40rem; }
+  a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent-line); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; border-radius: 2px; }
+  strong { font-weight: 600; }
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .88em;
+    background: var(--rule-soft);
+    padding: .08em .34em;
+    border-radius: 3px;
+  }
+
+  ul.plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .6rem; max-width: 40rem; }
+  ul.plain li { padding-left: 1.15rem; position: relative; }
+  ul.plain li::before {
+    content: "\2014";
+    position: absolute; left: 0;
+    color: var(--accent-line);
+  }
+
+  /* ---------- chips ---------- */
+  .chip {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .66rem; font-weight: 500;
+    letter-spacing: .09em; text-transform: uppercase;
+    padding: .18em .5em; border-radius: 3px;
+    white-space: nowrap;
+    vertical-align: .08em;
+  }
+  .chip.built   { background: var(--good-bg); color: var(--good); }
+  .chip.partial { background: var(--warn-bg); color: var(--warn); }
+  .chip.planned { background: var(--rule-soft); color: var(--ink-faint); }
+  .legend { display: flex; flex-wrap: wrap; gap: 1rem 1.4rem; font-size: .8rem; color: var(--ink-soft); align-items: center; }
+  .legend span { display: inline-flex; align-items: center; gap: .5rem; }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; margin: .25rem 0; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .7rem .9rem; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  thead th {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .68rem; font-weight: 500;
+    letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ink-faint);
+    background: var(--rule-soft);
+    border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.k { font-weight: 600; white-space: nowrap; }
+  .boundary td + td { color: var(--ink-soft); }
+
+  /* ---------- roadmap ---------- */
+  ol.milestones { margin: .25rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0; }
+  ol.milestones li {
+    display: grid;
+    grid-template-columns: 3rem 1fr;
+    gap: .1rem 1rem;
+    padding: 1rem 0;
+    border-top: 1px dashed var(--rule);
+  }
+  ol.milestones li:first-child { border-top: 0; padding-top: .25rem; }
+  ol.milestones .mkr {
+    grid-row: span 2;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-weight: 500;
+    font-size: .95rem;
+    color: var(--accent);
+    padding-top: .1rem;
+  }
+  ol.milestones .mtitle { font-weight: 600; font-size: .95rem; }
+  ol.milestones .mbody { color: var(--ink-soft); font-size: .92rem; }
+
+  /* ---------- footer ---------- */
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-size: .78rem;
+    color: var(--ink-faint);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: .02em;
+    line-height: 1.9;
+  }
+  footer a { color: var(--ink-faint); }
+  footer a:hover { color: var(--accent); }
+
+  @media print {
+    :root {
+      --paper:#fff; --surface:#fff; --ink:#000; --ink-soft:#20242c; --ink-faint:#565b64;
+      --rule:#c2c2c2; --rule-soft:#efefef; --accent:#6a5200; --accent-line:#6a5200;
+      --good:#0a5233; --good-bg:#eef1ef; --warn:#5f4300; --warn-bg:#f2efe4;
+    }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .doc { max-width: none; padding: 0; animation: none; }
+    .backlink { display: none; }
+    section + section { margin-top: 1.4rem; padding-top: 1.4rem; }
+    h2, h3 { break-after: avoid; }
+    table, tr, li { break-inside: avoid; }
+    a { text-decoration: none; color: #000; }
+  }
+</style>
+</head>
+<body>
+
+<article class="doc">
+
+  <header class="mast">
+    <a class="backlink" href="/vault">&larr; Back to the vault</a>
+    <p class="kicker">Private Trading Vault &nbsp;/&nbsp; How it works</p>
+    <h1>Confidential positions, provable solvency</h1>
+    <p class="lede">The trading agent&rsquo;s holdings and strategy never touch the chain. The vault&rsquo;s solvency and share price are proven on it every epoch.</p>
+    <dl class="meta">
+      <dt>Scope</dt><dd>How the agent&rsquo;s positions and strategy stay confidential while the vault&rsquo;s solvency stays independently verifiable</dd>
+      <dt>Network</dt><dd>Horizen Testnet (chain 2651420) &middot; live prototype</dd>
+      <dt>Updated</dt><dd>September 2026</dd>
+    </dl>
+  </header>
+
+  <section>
+    <h2><span class="num">1</span>Purpose and scope</h2>
+    <p>The Private Trading Vault pools depositor capital under an autonomous trading agent. The product promise is that the agent&rsquo;s <strong>positions, holdings, and strategy</strong> are not visible on-chain &mdash; not to competing desks, not to MEV bots, not to the depositors themselves &mdash; while the vault&rsquo;s <strong>solvency and share price</strong> stay independently verifiable by anyone.</p>
+    <p>This document specifies the confidentiality boundary and the mechanism that bridges confidential off-chain state to the public vault contract. It is the answer to the hard question in private DeFi: how depositors know the vault is solvent without being shown what it holds.</p>
+    <h3>What is confidential</h3>
+    <ul class="plain">
+      <li>Portfolio composition &mdash; which tokens, in what size</li>
+      <li>Entry and exit prices, trade timing, and venue routing</li>
+      <li>Strategy code and parameters</li>
+    </ul>
+    <h3>What stays public</h3>
+    <ul class="plain">
+      <li>Shares outstanding, deposits, and redemptions &mdash; ordinary ERC-4626 flows</li>
+      <li>Attested NAV, share price, and the solvency-proof result</li>
+      <li>Mandate parameters and drawdown-breaker state</li>
+    </ul>
+    <p>Depositor-level privacy (who deposited, how much) is out of scope here; it is an additive shielded-deposit layer noted in&nbsp;&sect;8.</p>
+  </section>
+
+  <section>
+    <h2><span class="num">2</span>The trust boundary</h2>
+    <p>Capital sits in one of two places. The <strong>settlement buffer</strong> holds the base asset on-chain in the clear. <strong>Deployed capital</strong> is held by execution accounts whose keys live inside a hardware enclave; only a single scalar &mdash; the aggregate mark-to-market value &mdash; ever crosses back to the contract.</p>
+    <div class="scroll">
+      <table class="boundary">
+        <thead>
+          <tr><th>Concern</th><th>On-chain &mdash; public, trust-minimised</th><th>In-enclave &mdash; confidential, attested</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="k">Capital at rest</td><td>Settlement buffer balance (base asset)</td><td>&mdash;</td></tr>
+          <tr><td class="k">Capital deployed</td><td>Aggregate value only, via signed attestation</td><td>Per-token balances in execution accounts</td></tr>
+          <tr><td class="k">Strategy</td><td>&mdash;</td><td>Code and parameters, sealed to the enclave measurement</td></tr>
+          <tr><td class="k">Share price</td><td>Derived solely from verified NAV attestations</td><td>NAV computed from balances &times; committed price vector</td></tr>
+          <tr><td class="k">Solvency</td><td>ZK proof over hidden balances (&sect;5)</td><td>Witness: balances, prices, Merkle openings</td></tr>
+          <tr><td class="k">Mandate limits</td><td>Parameters public; compliance checked on-chain</td><td>Proven satisfied each epoch inside the solvency statement</td></tr>
+          <tr><td class="k">Agent keys</td><td>Approved measurement + rotation timelock</td><td>Signing keys, generated in-enclave, never exported</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">3</span>Components</h2>
+
+    <h3>3.1&ensp;Vault contract &mdash; public <span class="chip built">Built</span></h3>
+    <p>An ERC-4626-style vault that custodies only the settlement buffer. It maintains share supply, the high-water mark, management and performance fees (minted as dilution shares), the redemption queue, the mandate parameters <code>maxDeployedBps</code> / <code>maxTradeBps</code> / <code>maxDrawdownBps</code>, and breaker state. It prices shares exclusively from verified NAV attestations and never holds or references an individual position. Today the prototype still exposes <code>heldTokens</code> and <code>deployedValue</code> directly &mdash; the surface that milestone&nbsp;M1 removes.</p>
+
+    <h3>3.2&ensp;Execution enclave &mdash; TEE <span class="chip planned">Planned</span></h3>
+    <p>The agent runs inside a hardware enclave (AWS Nitro Enclaves or Intel TDX). It holds the execution-account keys, runs the sealed strategy, submits orders to the private venue, and each epoch emits a signed NAV attestation and &mdash; from M3 &mdash; a succinct solvency proof. The enclave image measurement is registered in the registry below; the buffer only funds execution accounts bound to an approved measurement.</p>
+
+    <h3>3.3&ensp;AgentRegistry &mdash; public <span class="chip partial">Partial</span></h3>
+    <p>An allowlist of approved enclave measurements, timelocked key rotation, and <code>attestationValidityPeriod</code> / <code>heartbeatTimeout</code> liveness gates. If attestations lapse, the vault auto-enters unwind-only. The rotation and liveness scaffolding is built; the attestation is currently a hash placeholder, with full attestation-document verification scheduled for M2.</p>
+  </section>
+
+  <section>
+    <h2><span class="num">4</span>The NAV attestation bridge</h2>
+    <p>Every epoch &mdash; target cadence one hour &mdash; the enclave:</p>
+    <ul class="plain">
+      <li>Reads execution-account balances and a signed price vector from a committed oracle set</li>
+      <li>Computes <span class="mono">nav = &Sigma; bal&#8202;&middot;&#8202;price + settlementBuffer</span></li>
+      <li>Signs <span class="mono">{ epoch, nav, oracleRoot, executionAccountsRoot, deployedValue, breakerState, measurement }</span></li>
+      <li>Submits it to the vault, which checks the signature against an approved key, that <code>epoch</code> is monotonic, that the attestation is fresh within <code>attestationValidityPeriod</code>, and that <span class="mono">deployedValue &le; maxDeployedBps &middot; nav</span></li>
+    </ul>
+    <p>The contract then sets <span class="mono">pricePerShare = nav / totalSupply</span>. No position data crosses the boundary &mdash; only the scalar <code>nav</code> and two Merkle roots. Between epochs the price is stale-but-bounded, which is exactly why <code>maxDeployedBps</code> caps how far NAV can drift before the next attestation lands.</p>
+  </section>
+
+  <section>
+    <h2><span class="num">5</span>Verifiable solvency <span class="chip planned">Planned &middot; M3</span></h2>
+    <p>A signed <code>nav</code> still asks depositors to trust the enclave&rsquo;s arithmetic. So the enclave also produces a zero-knowledge proof that, against the committed <code>executionAccountsRoot</code> and <code>oracleRoot</code>:</p>
+    <ul class="plain">
+      <li>it knows balances <span class="mono">b&#7522;</span> and prices <span class="mono">p&#7522;</span> with Merkle membership in those roots such that <span class="mono">&Sigma; b&#7522;&#8202;p&#7522; + buffer &ge; navClaimed</span></li>
+      <li><span class="mono">&Sigma; b&#7522;&#8202;p&#7522; &le; maxDeployedBps &middot; navClaimed</span> &mdash; the agent cannot over-deploy</li>
+      <li>no single epoch trade exceeded <span class="mono">maxTradeBps &middot; nav</span>, against a committed trade log</li>
+    </ul>
+    <p>A verifier contract checks the proof; the dashboard shows &ldquo;solvency verified at epoch&nbsp;N&nbsp;/ block&nbsp;B.&rdquo; Individual balances, tokens, and prices stay hidden. The interim form shipped alongside M1&ndash;M2 is per-epoch Pedersen balance commitments plus a summed-value attestation, with full disclosure only under dispute.</p>
+  </section>
+
+  <section>
+    <h2><span class="num">6</span>Redemptions and the breaker, against a hidden NAV</h2>
+    <h3>Instant <span class="chip built">Built</span></h3>
+    <p>Paid from the settlement buffer at the last attested price, capped by buffer size.</p>
+    <h3>Queued <span class="chip built">Built &middot; skeleton</span></h3>
+    <p>The enclave watches the on-chain queue, unwinds enough positions into base asset, bridges to the buffer, and the contract settles the queue at the NAV attested <em>after</em> the unwind &mdash; a redeemer cannot exit on a stale favourable mark.</p>
+    <h3>Liveness failure <span class="chip built">Built</span> <span class="chip planned">guardian: M4</span></h3>
+    <p>If attestations lapse past <code>attestationValidityPeriod</code>, the vault enters unwind-only: no new deployment, redemptions prioritised pro-rata against the buffer, and <code>emergencyRedeem</code> opens. A timelocked guardian path (M4) lets a final signed balance disclosure be posted so residual positions can be recovered and distributed.</p>
+    <h3>Drawdown breaker <span class="chip built">Built</span></h3>
+    <p>Each attestation carries <code>nav</code>; the contract tracks the attested series against the high-water mark and trips to unwind-only when drawdown exceeds <code>maxDrawdownBps</code>. The breaker runs entirely on the public scalar &mdash; no position visibility required.</p>
+  </section>
+
+  <section>
+    <h2><span class="num">7</span>Threat model</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Actor</th><th>Can see</th><th>Can do</th><th>Bounded by</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k">Competing desk&nbsp;/ public</td>
+            <td>Deposits, redemptions, share price, NAV, solvency result, breaker state</td>
+            <td>Nothing further</td>
+            <td>Positions, sizes, timing, and strategy are never emitted</td>
+          </tr>
+          <tr>
+            <td class="k">Enclave host&nbsp;/ operator</td>
+            <td>Encrypted strategy blob, ciphertext order traffic</td>
+            <td>Halt the process (censor)</td>
+            <td>Liveness gate &rarr; unwind-only. Cannot extract keys or strategy (sealed to measurement); cannot front-run (no plaintext order flow)</td>
+          </tr>
+          <tr>
+            <td class="k">Compromised enclave</td>
+            <td>Plaintext strategy and keys</td>
+            <td>Trade within mandate; attempt to misreport NAV</td>
+            <td><code>maxDeployedBps</code> caps at-risk capital; the ZK statement (M3) makes a NAV misreport unprovable, so it fails verification and trips the breaker; rotation is timelocked; a dispute window applies</td>
+          </tr>
+          <tr>
+            <td class="k">Depositor</td>
+            <td>Own shares, public NAV, solvency proof</td>
+            <td>Deposit, redeem</td>
+            <td>Gets verifiable solvency and honest pricing; does not get position transparency &mdash; by design</td>
+          </tr>
+          <tr>
+            <td class="k">Oracle</td>
+            <td>Price queries</td>
+            <td>Feed a bad price</td>
+            <td>Multi-source committed oracle set; <code>oracleRoot</code> pinned in every attestation and proof; deviation bounds enforced in-contract</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">8</span>Status and roadmap</h2>
+    <p class="legend">
+      <span><span class="chip built">Built</span> live on testnet</span>
+      <span><span class="chip partial">Partial</span> scaffolding in place</span>
+      <span><span class="chip planned">Planned</span> ahead</span>
+    </p>
+    <p><strong>Today</strong> &mdash; on Horizen Testnet: an ERC-4626 vault with high-water-mark fee dilution, the redemption queue, the drawdown breaker, <code>AgentRegistry</code> with timelocked rotation and liveness gates, on-chain mandate parameters, a fixed-rate mock venue, and a full operator UI. The app already commits the held-token set rather than listing it; the vault contract still exposes those reads &mdash; the surface M1 closes.</p>
+    <ol class="milestones">
+      <li>
+        <span class="mkr">M1</span>
+        <span class="mtitle">Confidentiality boundary</span>
+        <span class="mbody">Move deployed capital into enclave-controlled execution accounts. Replace <code>heldTokens</code> / <code>deployedValue</code> reads with an <code>executionAccountsRoot</code> commitment plus a signed NAV attestation. The contract prices shares only from verified attestations.</span>
+      </li>
+      <li>
+        <span class="mkr">M2</span>
+        <span class="mtitle">Real TEE</span>
+        <span class="mbody">Agent running in Nitro or TDX. On-chain verification of the full attestation document, not a hash. Sealed strategy. Order routing to the Horizen private DEX.</span>
+      </li>
+      <li>
+        <span class="mkr">M3</span>
+        <span class="mtitle">Verifiable solvency</span>
+        <span class="mbody">Zero-knowledge proof of reserves and mandate compliance. Public verifier contract. Solvency status surfaced on the dashboard.</span>
+      </li>
+      <li>
+        <span class="mkr">M4</span>
+        <span class="mtitle">Mainnet and resilience</span>
+        <span class="mbody">Mainnet deployment. Timelocked guardian disclosure path. Optional shielded-deposit layer for depositor-level privacy.</span>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="num">9</span>Why this fits Horizen</h2>
+    <ul class="plain">
+      <li>Uses a TEE and zero-knowledge proofs together &mdash; the stack Horizen is already built on</li>
+      <li>Composes with the private DEX (the agent trades there) and with private yield products</li>
+      <li>Answers &ldquo;positions confidential, solvency verifiable&rdquo; with a concrete mechanism, not an aspiration</li>
+    </ul>
+  </section>
+
+  <footer>
+    Private Trading Vault &middot; confidentiality architecture &middot; Horizen Testnet<br>
+    <a href="/vault">Open the vault</a> &nbsp;&middot;&nbsp; <a href="https://github.com/timothy0987/trade-easy">Source</a> &nbsp;&middot;&nbsp; September 2026
+  </footer>
+
+</article>
+</body>
+</html>

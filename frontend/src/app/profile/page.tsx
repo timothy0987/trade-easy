@@ -6,6 +6,7 @@ import { formatUnits, type Abi } from "viem";
 import { User, ExternalLink, Wallet, Coins, Camera, Loader2 } from "lucide-react";
 
 import { SiteNav } from "@/components/SiteNav";
+import { SiteFooter } from "@/components/SiteFooter";
 import { PageHeader } from "@/components/PageHeader";
 import addresses from "@/contracts/addresses.json";
 import ProfileRegistryAbi from "@/contracts/ProfileRegistry.json";
@@ -88,6 +89,7 @@ export default function ProfilePage() {
           </>
         )}
       </div>
+      <SiteFooter />
     </main>
   );
 }
