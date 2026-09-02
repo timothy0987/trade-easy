@@ -405,7 +405,7 @@ export default function TradePage() {
               <ArrowLeftRight className="w-6 h-6 text-[var(--color-hz-gold-deep)] shrink-0" />
               Trading Venue
               <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-ink-3)]">
-                Mock · testnet
+                Mock venue
               </span>
             </h1>
             <p className="text-[var(--color-ink-2)] text-sm mt-1.5">

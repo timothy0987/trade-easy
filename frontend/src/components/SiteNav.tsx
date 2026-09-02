@@ -71,6 +71,13 @@ export function SiteNav({ children }: { children?: React.ReactNode }) {
         </span>
       </Link>
 
+      <span
+        title="Running on Horizen Testnet — test tokens only, no real funds"
+        className="shrink-0 text-[10px] font-mono font-medium uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-ink-3)]"
+      >
+        Testnet
+      </span>
+
       {/* Desktop tabs */}
       <div className="hidden md:flex gap-0.5 border-l border-r border-[var(--color-border)] px-2 mx-1">
         {TABS.map(({ href, label, Icon }) => {

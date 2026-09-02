@@ -93,10 +93,9 @@ export default function VaultPage() {
             <div className="mt-6 card p-4 flex gap-3 text-xs text-[var(--color-ink-3)] leading-relaxed">
               <Info className="w-4 h-4 shrink-0 mt-0.5" />
               <p>
-                <span className="font-semibold text-[var(--color-ink-2)]">Testnet prototype.</span>{" "}
-                Positions are committed, not disclosed (milestone&nbsp;M1). The trading venue is a fixed-rate mock.
-                The TEE attestation is a placeholder &mdash; M2 replaces it with a verified enclave attestation.
-                Full mechanism in{" "}
+                <span className="font-semibold text-[var(--color-ink-2)]">Testnet preview on Horizen.</span>{" "}
+                Test tokens only &mdash; no real funds. The vault, agent mandate and redemption logic are live;
+                the confidential-execution layer (secure enclave + proofs) is on the roadmap.{" "}
                 <a href="/architecture.html" target="_blank" rel="noreferrer" className="text-[var(--color-hz-blue)] hover:underline">
                   How it works
                 </a>.
