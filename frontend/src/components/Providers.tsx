@@ -27,7 +27,7 @@ export const horizenTestnet = defineChain({
 
 const config = getDefaultConfig({
   appName: 'Trade Easy',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '148d423984d72044810696b994464c9d',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '2dd53394af09492fe7c75263c52483fb',
   chains: [horizenTestnet],
   transports: {
     [horizenTestnet.id]: http(),
