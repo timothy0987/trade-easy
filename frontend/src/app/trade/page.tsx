@@ -401,7 +401,7 @@ export default function TradePage() {
       <div className="w-full max-w-md z-10">
         <div className="card card-raised p-6 sm:p-7 flex flex-col gap-6">
           <div>
-            <h1 className="text-[1.6rem] leading-tight font-bold tracking-tight text-[var(--color-hz-navy)] flex items-center gap-2.5 flex-wrap">
+            <h1 className="font-display text-[1.7rem] leading-[1.12] font-bold tracking-[-0.015em] text-[var(--color-hz-navy)] flex items-center gap-2.5 flex-wrap">
               <ArrowLeftRight className="w-6 h-6 text-[var(--color-hz-gold-deep)] shrink-0" />
               Trading Venue
               <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-ink-3)]">

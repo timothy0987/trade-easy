@@ -66,7 +66,7 @@ export function SiteNav({ children }: { children?: React.ReactNode }) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="" width={28} height={28} className="w-7 h-7" />
-        <span className="font-extrabold tracking-tight text-[var(--color-hz-navy)] text-[15px] hidden sm:block">
+        <span className="font-display font-bold tracking-[-0.01em] text-[var(--color-hz-navy)] text-[16px] hidden sm:block">
           Private Vault
         </span>
       </Link>

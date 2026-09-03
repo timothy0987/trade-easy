@@ -36,7 +36,12 @@
   --color-neon-purple: #030e24;
   --color-neon-teal: #b8860b;
 
-  --font-sans: "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* --- type ---
+     Plex Sans for the UI, Plex Mono for data / addresses / code,
+     Spectral for page titles — one system, shared with the design note. */
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font-display: "Spectral", Georgia, "Times New Roman", serif;
 }
 
 body {
@@ -47,11 +52,16 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  letter-spacing: -0.006em;
 }
 
-h1, h2, h3, h4 {
-  letter-spacing: -0.02em;
+/* Plex Sans is well-spaced; only tighten the display face at large sizes. */
+h1, h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+h3, h4 {
+  letter-spacing: -0.005em;
 }
 
 /* Fine engineered grid, barely there */

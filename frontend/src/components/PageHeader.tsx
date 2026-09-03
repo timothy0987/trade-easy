@@ -19,7 +19,7 @@ export function PageHeader({
   return (
     <header className="flex items-start justify-between gap-x-6 gap-y-3 flex-wrap">
       <div className="min-w-0">
-        <h1 className="text-[1.6rem] sm:text-[1.75rem] leading-tight font-bold tracking-tight text-[var(--color-hz-navy)] flex items-center gap-2.5">
+        <h1 className="font-display text-[1.7rem] sm:text-[1.95rem] leading-[1.12] font-bold tracking-[-0.015em] text-[var(--color-hz-navy)] flex items-center gap-2.5">
           {icon}
           <span>{title}</span>
         </h1>
