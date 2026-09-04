@@ -12,7 +12,8 @@
     "deploy:profile": "hardhat run scripts/deployProfile.js --network horizenTestnet",
     "fund": "hardhat run scripts/fundContracts.js --network horizenTestnet",
     "seed:trade": "hardhat run scripts/seedTrade.js --network horizenTestnet",
-    "settle": "hardhat run scripts/settleRedemptions.js --network horizenTestnet"
+    "settle": "hardhat run scripts/settleRedemptions.js --network horizenTestnet",
+    "unwind": "hardhat run scripts/unwindTrade.js --network horizenTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
