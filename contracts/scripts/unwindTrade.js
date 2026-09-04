@@ -80,8 +80,19 @@ async function main() {
   const origMaxDrawdownBps = await vault.maxDrawdownBps();
   let raised = false;
 
+  if (valueIn > nav) {
+    console.log(
+      `\n   Position value (${ethers.formatUnits(valueIn, 18)}) exceeds current NAV (${ethers.formatUnits(nav, 18)}).\n` +
+      `   tradeCap = nav * maxTradeBps/10000, so it can never exceed nav itself — no amount of\n` +
+      `   raising maxTradeBps can let this trade through right now. NAV is depressed because\n` +
+      `   totalAssets() excludes reservedAssets (a large pending redemption). Run\n` +
+      `   'npm run topup' first to close the liquidity gap directly, then retry unwind if desired.`
+    );
+    return;
+  }
+
   if (valueIn > currentCap) {
-    const neededBps = nav === 0n ? BPS : (valueIn * BPS) / nav + 1n; // round up, +1 buffer
+    const neededBps = (valueIn * BPS) / nav + 1n; // round up, +1 buffer
     const tempBps = neededBps > BPS ? BPS : neededBps;
     console.log(`   trade (${ethers.formatUnits(valueIn, 18)}) exceeds current cap (${ethers.formatUnits(currentCap, 18)}) — `
       + `raising maxTradeBps ${origMaxTradeBps} -> ${tempBps} for this trade`);
