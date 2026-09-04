@@ -8,6 +8,12 @@ const path = require("path");
  * can't be claimed because the payout is short). Sells the ENTIRE held-token
  * balance back through the venue adapter, refreshing agent liveness first.
  *
+ * totalAssets() excludes reservedAssets, so NAV (and the maxTradeBps cap derived
+ * from it) can be near-zero while a large redemption is pending — even a small
+ * position can then exceed the per-trade cap. If so, this temporarily raises
+ * maxTradeBps (onlyOwner) just enough to cover the one unwind trade, then
+ * restores the original limit immediately after (success or failure).
+ *
  *   npx hardhat run scripts/unwindTrade.js --network horizenTestnet
  */
 async function main() {
@@ -22,8 +28,14 @@ async function main() {
 
   const vault = await ethers.getContractAt("PrivateTradingVault", A.PrivateTradingVault, signer);
   const registry = await ethers.getContractAt("AgentRegistry", A.AgentRegistry, signer);
+  const oracle = await ethers.getContractAt(
+    ["function valueInAsset(address,uint256) view returns (uint256)"],
+    await vault.oracle(),
+    signer
+  );
   const tokenIn = await ethers.getContractAt("MockERC20", A.VaultTradableAsset, signer);
   const adapter = A.TradeEasyVenueAdapter;
+  const BPS = 10000n;
 
   if (!adapter || !A.VaultTradableAsset) throw new Error("TradeEasyVenueAdapter / VaultTradableAsset missing from addresses.json");
 
@@ -55,17 +67,46 @@ async function main() {
     return;
   }
   console.log(`2. executeTrade: ${ethers.formatUnits(amountIn, 18)} mWETH -> vUSD via ${adapter}`);
-  const tx = await vault.executeTrade(
-    adapter,
-    A.VaultTradableAsset,
-    A.VaultAsset,
-    amountIn,
-    0n,
-    ethers.encodeBytes32String("unwind"),
-    "0x"
-  );
-  const rcpt = await tx.wait();
-  console.log(`   tx: ${rcpt.hash}`);
+
+  // The per-trade cap is `maxTradeBps` of totalAssets(), and totalAssets() excludes
+  // reservedAssets. With a large pending redemption reserved, NAV (and so the cap)
+  // can be near-zero even though the position itself is a small % of the real vault.
+  // Temporarily raise maxTradeBps just enough to cover this one trade, then restore it.
+  const nav = await vault.totalAssets();
+  const valueIn = await oracle.valueInAsset(A.VaultTradableAsset, amountIn);
+  const currentCap = (nav * (await vault.maxTradeBps())) / BPS;
+  const origMaxTradeBps = await vault.maxTradeBps();
+  const origMaxDeployedBps = await vault.maxDeployedBps();
+  const origMaxDrawdownBps = await vault.maxDrawdownBps();
+  let raised = false;
+
+  if (valueIn > currentCap) {
+    const neededBps = nav === 0n ? BPS : (valueIn * BPS) / nav + 1n; // round up, +1 buffer
+    const tempBps = neededBps > BPS ? BPS : neededBps;
+    console.log(`   trade (${ethers.formatUnits(valueIn, 18)}) exceeds current cap (${ethers.formatUnits(currentCap, 18)}) — `
+      + `raising maxTradeBps ${origMaxTradeBps} -> ${tempBps} for this trade`);
+    await (await vault.setMandateLimits(tempBps, origMaxDeployedBps, origMaxDrawdownBps)).wait();
+    raised = true;
+  }
+
+  try {
+    const tx = await vault.executeTrade(
+      adapter,
+      A.VaultTradableAsset,
+      A.VaultAsset,
+      amountIn,
+      0n,
+      ethers.encodeBytes32String("unwind"),
+      "0x"
+    );
+    const rcpt = await tx.wait();
+    console.log(`   tx: ${rcpt.hash}`);
+  } finally {
+    if (raised) {
+      console.log(`   restoring maxTradeBps -> ${origMaxTradeBps}`);
+      await (await vault.setMandateLimits(origMaxTradeBps, origMaxDeployedBps, origMaxDrawdownBps)).wait();
+    }
+  }
 
   const dec = 18;
   const liquid = await (await ethers.getContractAt("MockERC20", A.VaultAsset, signer)).balanceOf(A.PrivateTradingVault);
