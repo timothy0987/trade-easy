@@ -652,8 +652,9 @@ function ManagerView({ view, setView }: { view: ViewName; setView: (v: ViewName)
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-[var(--color-hz-gold-deep)]" />
           <p className="text-xs text-[var(--color-ink-2)] leading-relaxed">
             <span className="font-semibold">Read-only.</span> This console&apos;s state is public, but its controls
-            (pause, settle) only work from the vault owner or agent wallet. Connect{" "}
-            <span className="font-mono">{short(d.owner)}</span> or <span className="font-mono">{short(agent)}</span> to act.
+            (pause, settle) only work from the vault owner{d.owner?.toLowerCase() !== agent?.toLowerCase() ? " or agent" : ""} wallet.
+            Connect <span className="font-mono">{short(d.owner)}</span>
+            {d.owner?.toLowerCase() !== agent?.toLowerCase() ? <> or <span className="font-mono">{short(agent)}</span></> : null} to act.
           </p>
         </div>
       )}
