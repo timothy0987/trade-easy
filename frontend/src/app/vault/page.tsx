@@ -154,7 +154,7 @@ function useVaultData(user?: `0x${string}`) {
   const vaultCalls = [
     "totalAssets", "pricePerShare", "totalSupply", "asset", "paused", "emergency",
     "unwindOnly", "depositCap", "maxTradeBps", "maxDeployedBps", "maxDrawdownBps",
-    "highWaterPricePerShare", "deployedValue", "heldTokens", "redeemRequestCount",
+    "highWaterPricePerShare", "deployedValue", "heldTokens", "redeemRequestCount", "owner",
   ].map((functionName) => ({ address: VAULT, abi: VAULT_ABI, functionName }));
 
   const { data, refetch, isLoading } = useReadContracts({
@@ -198,6 +198,7 @@ function useVaultData(user?: `0x${string}`) {
     deployedValue: v(12),
     heldTokens: (data?.[13]?.result as `0x${string}`[] | undefined) ?? [],
     requestCount: v(14),
+    owner: data?.[15]?.result as `0x${string}` | undefined,
     userShares: udata?.[0]?.result as bigint | undefined,
     userAssetBal: udata?.[1]?.result as bigint | undefined,
     allowance: udata?.[2]?.result as bigint | undefined,
@@ -611,6 +612,10 @@ function ManagerView({ view, setView }: { view: ViewName; setView: (v: ViewName)
   const agent = rg(0) as string | undefined;
   const live = rg(1) as boolean | undefined;
 
+  const isAuthorized = !!address && (
+    address.toLowerCase() === d.owner?.toLowerCase() || address.toLowerCase() === agent?.toLowerCase()
+  );
+
   const pendingIds = rows.filter((r) => !r.processed).map((r) => r.id);
   const dec = d.assetDecimals;
   const deployedPct =
@@ -641,6 +646,17 @@ function ManagerView({ view, setView }: { view: ViewName; setView: (v: ViewName)
         description="Supervisory controls. The agent trades under an on-chain mandate; execution moves into a TEE in M2."
         actions={<ViewToggle view={view} setView={setView} />}
       />
+
+      {!isAuthorized && (
+        <div className="card p-4 flex items-start gap-3 border-[var(--color-hz-gold-deep)]/40 bg-[var(--color-hz-gold)]/10">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-[var(--color-hz-gold-deep)]" />
+          <p className="text-xs text-[var(--color-ink-2)] leading-relaxed">
+            <span className="font-semibold">Read-only.</span> This console&apos;s state is public, but its controls
+            (pause, settle) only work from the vault owner or agent wallet. Connect{" "}
+            <span className="font-mono">{short(d.owner)}</span> or <span className="font-mono">{short(agent)}</span> to act.
+          </p>
+        </div>
+      )}
 
       <div className="card p-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -701,16 +717,16 @@ function ManagerView({ view, setView }: { view: ViewName; setView: (v: ViewName)
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <TxButton onClick={() => run("pause", () => writeContractAsync({ address: VAULT, abi: VAULT_ABI, functionName: "pause" }))} busy={busy === "pause"} disabled={d.paused} tone="ghost">
+        <TxButton onClick={() => run("pause", () => writeContractAsync({ address: VAULT, abi: VAULT_ABI, functionName: "pause" }))} busy={busy === "pause"} disabled={!isAuthorized || d.paused} tone="ghost">
           Pause vault
         </TxButton>
-        <TxButton onClick={() => run("unpause", () => writeContractAsync({ address: VAULT, abi: VAULT_ABI, functionName: "unpause" }))} busy={busy === "unpause"} disabled={!d.paused || d.emergency} tone="ghost">
+        <TxButton onClick={() => run("unpause", () => writeContractAsync({ address: VAULT, abi: VAULT_ABI, functionName: "unpause" }))} busy={busy === "unpause"} disabled={!isAuthorized || !d.paused || d.emergency} tone="ghost">
           Unpause
         </TxButton>
         <TxButton
           onClick={() => run("settle", () => writeContractAsync({ address: VAULT, abi: VAULT_ABI, functionName: "processRedeemRequests", args: [pendingIds.map((i) => BigInt(i))] }))}
           busy={busy === "settle"}
-          disabled={pendingIds.length === 0}
+          disabled={!isAuthorized || pendingIds.length === 0}
           tone="navy"
         >
           Settle {pendingIds.length} redemption{pendingIds.length === 1 ? "" : "s"}
