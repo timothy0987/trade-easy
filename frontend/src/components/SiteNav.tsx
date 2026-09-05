@@ -60,7 +60,7 @@ export function SiteNav({ children }: { children?: React.ReactNode }) {
   return (
     <nav className="levitating-nav" aria-label="Primary">
       <Link
-        href="/vault"
+        href="/"
         className="flex items-center gap-2 pl-1.5 pr-1 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-[var(--color-hz-gold-deep)]"
         aria-label="Private Vault — home"
       >
